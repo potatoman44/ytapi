@@ -164,13 +164,14 @@ function toast(m,ms=2200){const t=$('#toast');t.textContent=m;t.classList.add('o
 
 /* ---------- YouTube playback (YouTube Data API search + official IFrame player) ---------- */
 let YTKEY=store.get('ytkey',''), VID=store.get('vids',{});
-let ytp=null,ytReady=false,ytWant=null,ytPaused=true,quotaOut=false;
+let ytp=null,ytReady=false,ytWant=null,ytPaused=true,quotaOut=false,kick=null;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 window.onYouTubeIframeAPIReady=()=>{ytp=new YT.Player('ytp',{width:356,height:200,playerVars:{playsinline:1,rel:0,modestbranding:1},
   events:{onReady:()=>{ytReady=true;muted?ytp.mute():ytp.unMute();if(ytWant){const w=ytWant;ytWant=null;startVid(w)}},onStateChange:onYT,onError:onYTErr}})};
 (()=>{const sc=document.createElement('script');sc.src='https://www.youtube.com/iframe_api';document.head.appendChild(sc)})();
+function setLoading(id,on){const el=document.querySelector(`[data-cv="${id}"] .pp`);if(el){el.classList.toggle('ld',on);if(!on)markPlaying()}}
 function onYT(e){
-  if(e.data===1){ytPaused=false;markPlaying()}
+  if(e.data===1){ytPaused=false;clearTimeout(kick);if(playing)setLoading(playing,false);markPlaying()}
   else if(e.data===2){ytPaused=true;markPlaying()}
   else if(e.data===0){ytPaused=true;const was=playing;playing=null;markPlaying();if(view==='game'&&phase==='reveal'&&was&&!fast)advance()}
 }
@@ -184,6 +185,8 @@ function startVid(id){
   if(!ytReady){ytWant=id;return}
   const s=SONGS[id],v=(VID[id]||[])[s._try||0];if(!v)return;
   ytp.loadVideoById({videoId:v,startSeconds:30});muted?ytp.mute():ytp.unMute();
+  setLoading(id,true);clearTimeout(kick);
+  kick=setTimeout(()=>{if(playing===id&&[-1,5].includes(ytp.getPlayerState()))ytp.playVideo()},2500);
   $('#dockt').textContent=s.t+' — '+s.a+' · '+s.y;$('#dock').classList.add('on');document.body.classList.add('docked');
 }
 function arts(a){const main=a.split(/ feat\. | & |, /)[0];const rom=(main.match(/\[(.+?)\]/)||[])[1];return [main.replace(/\s*\[.*?\]/,'').trim(),rom].filter(Boolean)}
@@ -219,13 +222,12 @@ async function play(id){
   const btn=()=>document.querySelector(`[data-cv="${id}"] .pp`);
   if(VID[id]===undefined&&btn())btn().classList.add('ld');
   const r=await lookup(s,true);
-  if(btn())btn().classList.remove('ld');
-  if(playing!==id)return;
-  if(!r||!r.length){playing=null;markPlaying();updateCard(id);if(r&&!r.length)toast('NO VIDEO FOUND — TRY THE YT BUTTON');
+  if(playing!==id){if(btn())btn().classList.remove('ld');return}
+  if(!r||!r.length){if(btn())btn().classList.remove('ld');playing=null;markPlaying();updateCard(id);if(r&&!r.length)toast('NO VIDEO FOUND — TRY THE YT BUTTON');
     if(view==='game'&&phase==='reveal'&&!fast){clearTimeout(revealTimer);revealTimer=setTimeout(advance,1200)}return}
   startVid(id);
 }
-function stopAudio(clear=true){if(ytReady)ytp.pauseVideo();ytPaused=true;if(clear){playing=null;markPlaying()}}
+function stopAudio(clear=true){clearTimeout(kick);if(playing)setLoading(playing,false);if(ytReady)ytp.pauseVideo();ytPaused=true;if(clear){playing=null;markPlaying()}}
 function togglePause(){if(!ytReady||!playing)return;if(ytPaused)ytp.playVideo();else ytp.pauseVideo()}
 function markPlaying(){document.querySelectorAll('[data-cv]').forEach(el=>{const on=el.dataset.cv===playing;el.classList.toggle('playing',on);const pp=el.querySelector('.pp');if(pp&&!pp.classList.contains('ld'))pp.innerHTML=on&&!ytPaused?ICON.pause:ICON.play})}
 const ICON={play:'<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>',pause:'<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>',spk:'<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',spkoff:'<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>'};
