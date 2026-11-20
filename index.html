@@ -201,8 +201,29 @@ function jsonp(url){return new Promise((res,rej)=>{const cb='__cb'+(++jn);const 
 const player=new Audio();player.preload='auto';
 const URLS={}, URLP={}, WARM={};      // id -> preview url, pending lookups, warmed ids
 let current=null;                     // id whose clip is loaded in the player
+// Songs whose clip is found on the fly with strict rules (artist, title and album must all match)
+const HINTS={
+  '1995-1':{qs:['Swans Blind White Light','Swans Blind'],artist:'swans',title:/^blind\b/i,album:/white light/i},
+  '1999-0':{qs:['Fishmans Long Season 98.12.28','Fishmans 98.12.28 Long Season live'],artist:'fishmans',title:/long season/i,album:/98\.?12\.?28|otokotachi|男達/i},
+  '1999-1':{qs:['Fishmans ゆらめき IN THE AIR 98.12.28','Fishmans Yurameki In The Air 98.12.28','Fishmans 98.12.28'],artist:'fishmans',title:/ゆらめき|yurameki/i,album:/98\.?12\.?28|otokotachi|男達/i},
+  '1999-7':{qs:['Fishmans Walking In The Rhythm 98.12.28','Fishmans 98.12.28'],artist:'fishmans',title:/walking in the rhythm/i,album:/98\.?12\.?28|otokotachi|男達/i},
+  '1999-8':{qs:['Fishmans In The Flight 98.12.28','Fishmans 98.12.28'],artist:'fishmans',title:/in the flight/i,album:/98\.?12\.?28|otokotachi|男達/i},
+};
+let FOUND=store.get('dzfound',{});
+Object.keys(FOUND).forEach(id=>{if(SONGS[id]&&!SONGS[id].dz&&FOUND[id])SONGS[id].dz=FOUND[id]});
+async function findHint(id){
+  const h=HINTS[id];if(!h)return null;
+  const norm=x=>(x||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/^the /,'').replace(/[^a-z0-9]+/g,'');
+  for(const q of h.qs){
+    let r=null;try{r=await jsonp('https://api.deezer.com/search?limit=50&q='+encodeURIComponent(q))}catch(e){}
+    const hit=((r&&r.data)||[]).find(x=>x.preview&&norm(x.artist&&x.artist.name)===h.artist&&h.title.test(x.title||'')&&h.album.test((x.album&&x.album.title)||''));
+    if(hit){SONGS[id].dz=hit.id;FOUND[id]=hit.id;store.set('dzfound',FOUND);URLS[id]=hit.preview;return hit.preview}
+  }
+  return null;
+}
 function urlFor(id,fresh){
-  const s=SONGS[id];if(!s.dz)return Promise.resolve(null);
+  const s=SONGS[id];
+  if(!s.dz){if(!HINTS[id])return Promise.resolve(null);if(URLP[id])return URLP[id];URLP[id]=findHint(id).finally(()=>{delete URLP[id]});return URLP[id]}
   if(!fresh&&URLS[id])return Promise.resolve(URLS[id]);
   if(!fresh&&URLP[id])return URLP[id];
   URLP[id]=jsonp('https://api.deezer.com/track/'+s.dz).then(tr=>(URLS[id]=(tr&&tr.preview)||null)).catch(()=>null).finally(()=>{delete URLP[id]});
@@ -220,7 +241,7 @@ async function playClip(id,url){
 }
 async function play(id){
   const s=SONGS[id];stopAudio(false);playing=id;markPlaying();
-  if(s.dz){
+  if(s.dz||HINTS[id]){
     // if the link is already known, start in the same tick as the tap (phones require this)
     let url=URLS[id];if(!url){setLoading(id,true);url=await urlFor(id)}
     if(playing!==id){setLoading(id,false);return}
@@ -345,7 +366,7 @@ function menuHTML(){
       <button class="mbtn" data-go="rank">RANKINGS</button>
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 1.9 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 2.0 · 20 NOV</div></div>`;
 }
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
