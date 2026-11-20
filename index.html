@@ -181,7 +181,7 @@ let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=nul
 function toast(m,ms=2200){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),ms)}
 
 /* ---------- audio: Deezer 30-second clips (preloaded), YouTube for full songs + fallback ---------- */
-const CLIP_MS=5000;               // length of each clip during the reveal
+const CLIP_MS=8000;               // length of each clip during the reveal
 let YTKEY=store.get('ytkey',''), VID=store.get('vids',{});
 let mode=null;                    // 'clip' | 'yt'
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -191,46 +191,59 @@ function jsonp(url){return new Promise((res,rej)=>{const cb='__cb'+(++jn);const 
   const to=setTimeout(()=>{done();rej(new Error('timeout'))},8000);
   window[cb]=d=>{done();res(d)};sc.onerror=()=>{done();rej(new Error('blocked'))};
   sc.src=url+(url.includes('?')?'&':'?')+'output=jsonp&callback='+cb;document.head.appendChild(sc)})}
-const AUD={}, CLIPP={};           // id -> Audio element, id -> pending promise
-function clipFor(id,fresh){
+// ONE shared <audio> element for every clip: phones cap how many media players a page may hold,
+// and an element that has played once after a tap can be reused for later automatic plays.
+const player=new Audio();player.preload='auto';
+const URLS={}, URLP={}, WARM={};      // id -> preview url, pending lookups, warmed ids
+let current=null;                     // id whose clip is loaded in the player
+function urlFor(id,fresh){
   const s=SONGS[id];if(!s.dz)return Promise.resolve(null);
-  if(!fresh&&AUD[id])return Promise.resolve(AUD[id]);
-  if(!fresh&&CLIPP[id])return CLIPP[id];
-  CLIPP[id]=jsonp('https://api.deezer.com/track/'+s.dz).then(tr=>{
-    if(!tr||!tr.preview)return null;
-    const au=new Audio();au.preload='auto';au.src=tr.preview;au.muted=muted;
-    au.onended=()=>{if(playing===id&&mode==='clip'){playing=null;markPlaying()}};
-    au.onerror=()=>{if(AUD[id]===au)delete AUD[id]};   // expired link: fetch a fresh one next time
-    AUD[id]=au;return au;
-  }).catch(()=>null).finally(()=>{delete CLIPP[id]});
-  return CLIPP[id];
+  if(!fresh&&URLS[id])return Promise.resolve(URLS[id]);
+  if(!fresh&&URLP[id])return URLP[id];
+  URLP[id]=jsonp('https://api.deezer.com/track/'+s.dz).then(tr=>(URLS[id]=(tr&&tr.preview)||null)).catch(()=>null).finally(()=>{delete URLP[id]});
+  return URLP[id];
 }
-function preloadYear(y){if(!RAW[y])return;RAW[y].forEach((_,i)=>clipFor(y+'-'+i))}
+function warm(id){urlFor(id).then(u=>{if(u&&!WARM[id]){WARM[id]=1;fetch(u,{mode:'no-cors'}).catch(()=>{})}})}  // pre-download into the browser cache
+function preloadYear(y){if(!RAW[y])return;RAW[y].forEach((_,i)=>urlFor(y+'-'+i));for(let i=0;i<3;i++)warm(y+'-'+i)}
+player.onended=()=>{if(mode==='clip'&&playing===current){playing=null;markPlaying()}};
+player.onplaying=()=>{if(mode==='clip'&&playing)setLoading(playing,false);markPlaying()};
+player.onpause=()=>markPlaying();
+async function playClip(id,url){
+  current=id;mode='clip';player.muted=muted;
+  if(player.src!==url){player.src=url}else{try{player.currentTime=0}catch(e){}}
+  await player.play();
+}
 async function play(id){
   const s=SONGS[id];stopAudio(false);playing=id;markPlaying();
   if(s.dz){
-    setLoading(id,true);
-    let au=await clipFor(id);
+    // if the link is already known, start in the same tick as the tap (phones require this)
+    let url=URLS[id];if(!url){setLoading(id,true);url=await urlFor(id)}
     if(playing!==id){setLoading(id,false);return}
-    if(au){mode='clip';au.muted=muted;try{au.currentTime=0;await au.play();setLoading(id,false);markPlaying();return}
-      catch(e){if(e.name==='NotAllowedError'){setLoading(id,false);playing=null;markPlaying();toast('CLICK PLAY TO START AUDIO');return}
-        au=await clipFor(id,true);if(au&&playing===id){try{await au.play();setLoading(id,false);markPlaying();return}catch(e2){}}}}
+    if(url){
+      try{await playClip(id,url);setLoading(id,false);markPlaying();warmNext(id);return}
+      catch(e){
+        if(e&&e.name==='NotAllowedError'){setLoading(id,false);playing=null;markPlaying();toast('TAP PLAY TO START AUDIO');return}
+        const u2=await urlFor(id,true);   // link may have expired
+        if(u2&&playing===id){try{await playClip(id,u2);setLoading(id,false);markPlaying();return}catch(e2){}}
+      }
+    }
     setLoading(id,false);
   }
   return ytPlay(id);   // no clip for this song: use YouTube
 }
+function warmNext(id){const [y,i]=id.split('-').map(Number);for(let k=1;k<=2;k++){const n=y+'-'+(i+k);if(SONGS[n])warm(n)}}
 function stopAudio(clear=true){
   clearTimeout(kick);
-  Object.values(AUD).forEach(a=>{if(!a.paused)a.pause()});
+  if(!player.paused)player.pause();
   if(ytReady)ytp.pauseVideo();ytPaused=true;
   if(playing)setLoading(playing,false);
   if(clear){playing=null;markPlaying()}
 }
-function isPaused(){if(!playing)return true;if(mode==='clip'){const a=AUD[playing];return !a||a.paused}return ytPaused}
+function isPaused(){if(!playing)return true;if(mode==='clip')return current!==playing||player.paused;return ytPaused}
 function togglePause(){if(!playing)return;
-  if(mode==='clip'){const a=AUD[playing];if(!a)return;if(a.paused)a.play().catch(()=>{});else a.pause();setTimeout(markPlaying,30)}
+  if(mode==='clip'){if(player.paused)player.play().catch(()=>{});else player.pause()}
   else if(ytReady){if(ytPaused)ytp.playVideo();else ytp.pauseVideo()}}
-function applyMute(){Object.values(AUD).forEach(a=>a.muted=muted);if(ytReady)muted?ytp.mute():ytp.unMute()}
+function applyMute(){player.muted=muted;if(ytReady)muted?ytp.mute():ytp.unMute()}
 function setLoading(id,on){const el=document.querySelector(`[data-cv="${id}"] .pp`);if(el){el.classList.toggle('ld',on);if(!on)markPlaying()}}
 function markPlaying(){const p=isPaused();document.querySelectorAll('[data-cv]').forEach(el=>{const on=el.dataset.cv===playing;el.classList.toggle('playing',on);const pp=el.querySelector('.pp');if(pp&&!pp.classList.contains('ld'))pp.innerHTML=on&&!p?ICON.pause:ICON.play})}
 
@@ -327,7 +340,7 @@ function menuHTML(){
       <button class="mbtn" data-go="rank">RANKINGS</button>
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 1.5 · 19 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 1.6 · 20 NOV</div></div>`;
 }
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
@@ -389,7 +402,7 @@ function dmRankHTML(){
 /* ---------- game flow ---------- */
 function enterYear(i){
   yi=Math.max(0,Math.min(YEARS.length-1,i));revealed=0;phase='reveal';stopAudio();view='game';store.set('yi',yi);
-  render();preloadYear(YEARS[yi]);setTimeout(()=>preloadYear(YEARS[yi+1]),3000);
+  render();preloadYear(YEARS[yi]);setTimeout(()=>{if(YEARS[yi+1])RAW[YEARS[yi+1]].forEach((_,i)=>urlFor(YEARS[yi+1]+'-'+i))},4000);
   if(seenTip&&!fast)setTimeout(advance,350);
 }
 function advance(){
