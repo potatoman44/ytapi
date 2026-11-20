@@ -207,7 +207,7 @@ function toast(m,ms=2200){const t=$('#toast');t.textContent=m;t.classList.add('o
 
 /* ---------- audio: Deezer 30-second clips (preloaded), YouTube for full songs + fallback ---------- */
 const CLIP_MS=8000;               // length of each clip during the reveal
-let YTKEY=store.get('ytkey',''), VID=store.get('vids',{});
+let YTKEY=store.get('ytkey',''), VID=store.get('vids2',{});
 let mode=null;                    // 'clip' | 'yt'
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let jn=0;
@@ -223,6 +223,7 @@ const URLS={}, URLP={}, WARM={};      // id -> preview url, pending lookups, war
 let current=null;                     // id whose clip is loaded in the player
 // Songs whose clip is found on the fly with strict rules (artist, title and album must all match)
 const HINTS={
+  '1968-8':{qs:['Jimi Hendrix Crosstown Traffic Electric Ladyland','Jimi Hendrix Crosstown Traffic'],artist:['jimihendrix','jimihendrixexperience'],title:/^crosstown traffic/i,album:/electric ladyland|experience hendrix|best of|smash hits|ultimate|essential/i},
   '1995-1':{qs:['Swans Blind White Light','Swans Blind'],artist:'swans',title:/^blind\b/i,album:/white light/i},
   '1999-0':{qs:['Fishmans Long Season 98.12.28','Fishmans 98.12.28 Long Season live'],artist:'fishmans',title:/long season/i,album:/98\.?12\.?28|otokotachi|男達/i},
   '1999-1':{qs:['Fishmans ゆらめき IN THE AIR 98.12.28','Fishmans Yurameki In The Air 98.12.28','Fishmans 98.12.28'],artist:'fishmans',title:/ゆらめき|yurameki/i,album:/98\.?12\.?28|otokotachi|男達/i},
@@ -236,7 +237,7 @@ async function findHint(id){
   const norm=x=>(x||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/^the /,'').replace(/[^a-z0-9]+/g,'');
   for(const q of h.qs){
     let r=null;try{r=await jsonp('https://api.deezer.com/search?limit=50&q='+encodeURIComponent(q))}catch(e){}
-    const hit=((r&&r.data)||[]).find(x=>x.preview&&norm(x.artist&&x.artist.name)===h.artist&&h.title.test(x.title||'')&&h.album.test((x.album&&x.album.title)||''));
+    const hit=((r&&r.data)||[]).find(x=>x.preview&&[].concat(h.artist).includes(norm(x.artist&&x.artist.name))&&h.title.test(x.title||'')&&h.album.test((x.album&&x.album.title)||''));
     if(hit){SONGS[id].dz=hit.id;FOUND[id]=hit.id;store.set('dzfound',FOUND);URLS[id]=hit.preview;return hit.preview}
   }
   return null;
@@ -313,7 +314,7 @@ function onYT(e){
 function onYTErr(){
   const id=playing;if(!id||mode!=='yt')return;const s=SONGS[id],list=VID[id]||[];s._try=(s._try||0)+1;
   if(list[s._try]){startVid(id,s._from);return}
-  VID[id]=[];store.set('vids',VID);setLoading(id,false);playing=null;markPlaying();toast("NO EMBEDDABLE VIDEO — OPENING YOUTUBE SEARCH INSTEAD");window.open(YTSEARCH(s),'_blank');
+  VID[id]=[];store.set('vids2',VID);setLoading(id,false);playing=null;markPlaying();toast("NO EMBEDDABLE VIDEO — OPENING YOUTUBE SEARCH INSTEAD");window.open(YTSEARCH(s),'_blank');
 }
 function startVid(id,from){
   if(!ytReady){ytWant={id,from};return}
@@ -331,18 +332,32 @@ function lookup(s){
   if(s._p)return s._p;
   s._p=new Promise(res=>{queue.unshift({s,res});pump()});return s._p;
 }
+// keep real recordings: drop lessons, covers, reactions etc.; prefer the artist's own / "Topic" / VEVO uploads
+const JUNK=/tutorial|lesson|how to play|\bcover\b|karaoke|reaction|\breacts?\b|backing track|\btabs?\b|chords|slowed|reverb|sped up|nightcore|\b8d\b|mashup|#shorts|playthrough|breakdown|analysis/i;
+const MEH=/\blive\b|remix|instrumental|lyrics?\b|full album/i;
+function rankVideos(items,s,art,core){
+  const n=x=>(x||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'');
+  const songHas=w=>new RegExp(w,'i').test(s.t+' '+s.al);
+  const A=n(art),C=n(core);
+  return items.map(x=>{const sn=x.snippet||{};const t=sn.title||'',ch=sn.channelTitle||'';let sc=0;
+      const junk=(t.match(JUNK)||[])[0];if(junk&&!songHas(junk.replace(/\W/g,'')))sc-=10;
+      const meh=(t.match(MEH)||[])[0];if(meh&&!songHas(meh.replace(/\W/g,'')))sc-=2;
+      if(/ - topic$/i.test(ch))sc+=5;if(/vevo/i.test(ch))sc+=3;if(A&&n(ch).includes(A))sc+=3;
+      if(C&&n(t).includes(C))sc+=2;if(A&&n(t).includes(A))sc+=1;if(/official (audio|video)|remaster/i.test(t))sc+=1;
+      return {id:x.id&&x.id.videoId,sc}}).filter(x=>x.id&&x.sc>-5).sort((a,b)=>b.sc-a.sc).map(x=>x.id).slice(0,5);
+}
 async function pump(){
   if(qBusy)return;qBusy=true;
   while(queue.length){
     const {s,res}=queue.shift();let out=null;
     try{
       const [art]=arts(s.a);const core=s.t.split(' / ')[0].replace(/☮︎?/g,"O'").replace(/"/g,'').trim();
-      const r=await fetch('https://www.googleapis.com/youtube/v3/search?part=id&type=video&maxResults=5&videoEmbeddable=true&videoSyndicated=true&q='+encodeURIComponent(art+' '+core)+'&key='+encodeURIComponent(YTKEY));
+      const r=await fetch('https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=15&videoEmbeddable=true&videoSyndicated=true&videoCategoryId=10&q='+encodeURIComponent(art+' '+core)+'&key='+encodeURIComponent(YTKEY));
       const j=await r.json();
       if(j.error){const why=(j.error.errors&&j.error.errors[0]&&j.error.errors[0].reason)||'';
         if(/quota/i.test(why)){quotaOut=true;toast("TODAY'S YOUTUBE SEARCH LIMIT IS USED UP — RESETS AROUND 8AM UK",6000)}
         else{toast('YOUTUBE KEY PROBLEM: '+(j.error.message||why).toUpperCase().slice(0,90),6000)}
-      }else{out=(j.items||[]).map(x=>x.id&&x.id.videoId).filter(Boolean);VID[s.id]=out;store.set('vids',VID)}
+      }else{out=rankVideos(j.items||[],s,art,core);VID[s.id]=out;store.set('vids2',VID)}
     }catch(e){toast('COULD NOT REACH YOUTUBE')}
     s._p=null;res(out);
     await sleep(150);
@@ -392,7 +407,7 @@ function menuHTML(){
       <button class="mbtn" data-go="rank">RANKINGS</button>
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 2.3 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 2.4 · 20 NOV</div></div>`;
 }
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
