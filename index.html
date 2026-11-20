@@ -52,7 +52,7 @@ a{color:inherit;text-decoration:none}
 .fast.on .tog{background:var(--cool)}.fast.on .tog::after{left:21px;background:var(--paperink)}
 .close{position:fixed;right:20px;top:20px;width:46px;height:46px;border-radius:4px;border:2px solid var(--ink);display:grid;place-items:center;font-size:20px;background:var(--deep);z-index:6;box-shadow:3px 3px 0 #000}
 .close:hover{background:var(--hot);color:var(--paperink)}
-.year{font-size:66px}.year.mon{font-size:54px}.pills.decs{margin-top:10px;box-shadow:4px 4px 0 var(--hot)}.pills.decs span{padding:4px 12px;font-size:17px}.pills span[data-game]{cursor:pointer}.mgrid{grid-template-columns:repeat(12,1fr)!important}
+.year{font-size:66px}.year.cat{font-size:44px;max-width:80vw;line-height:1.05}.year.cat.long{font-size:32px}.cgrid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))!important}.cgrid button{padding:10px 8px;line-height:1.15}.cgrid button small{display:block;font-size:11px;opacity:.75;margin-top:3px}.year.mon{font-size:54px}.pills.decs{margin-top:10px;box-shadow:4px 4px 0 var(--hot)}.pills.decs span{padding:4px 12px;font-size:17px}.pills span[data-game]{cursor:pointer}.mgrid{grid-template-columns:repeat(12,1fr)!important}
 .sub{font-size:15px;color:var(--cool);text-align:center;margin-top:6px;letter-spacing:.2em}
 .stage{padding:100px 24px 110px;max-width:1300px;margin:0 auto}
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:26px 30px}
@@ -60,7 +60,7 @@ a{color:inherit;text-decoration:none}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 22px}}
 @media(max-width:600px){
  .v1{width:320px;height:320px}.v2{width:340px;height:340px}
- .top{height:118px;padding-top:54px}.year{font-size:42px}.year.mon{font-size:30px}.mgrid{grid-template-columns:repeat(6,1fr)!important}
+ .top{height:118px;padding-top:54px}.year{font-size:42px}.year.mon{font-size:30px}.year.cat{font-size:24px}.year.cat.long{font-size:18px}.cgrid{grid-template-columns:repeat(2,1fr)!important}.mgrid{grid-template-columns:repeat(6,1fr)!important}
  .cv.playing{transform:none}
  .fast{top:14px;left:12px;font-size:15px;padding:6px 10px 6px 7px}.tog{width:34px;height:19px}.tog::after{width:13px;height:13px}.fast.on .tog::after{left:18px}
  .close{top:12px;right:12px;width:40px;height:40px}
@@ -195,14 +195,20 @@ const RAW_Y={"1963":[["In a Sentimental Mood","John Coltrane & Duke Ellington","
 const YEAR_KEYS=Object.keys(RAW_Y).map(Number).sort((a,b)=>a-b);
 let RAW=RAW_Y, YEARS=YEAR_KEYS;
 const MONTHN=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
-const isMonthKey=k=>typeof k==='string'&&k.includes('.');
-const label=k=>isMonthKey(k)?MONTHN[+k.split('.')[1]-1]+' '+k.split('.')[0]:String(k);
-const shortLabel=k=>isMonthKey(k)?MONTHN[+k.split('.')[1]-1].slice(0,3)+' '+k.split('.')[0]:String(k);
+const isMonthKey=k=>typeof k==='string'&&k.includes('.')&&!k.startsWith('C~');
+const isCatKey=k=>typeof k==='string'&&k.startsWith('C~');
+const LABELS={};                          // category round key -> label
+const label=k=>isCatKey(k)?(LABELS[k]||k):isMonthKey(k)?MONTHN[+k.split('.')[1]-1]+' '+k.split('.')[0]:String(k);
+const shortLabel=k=>isCatKey(k)?(LABELS[k]||k):isMonthKey(k)?MONTHN[+k.split('.')[1]-1].slice(0,3)+' '+k.split('.')[0]:String(k);
 const SONGS={};
 function addSongs(raw){Object.keys(raw).forEach(k=>raw[k].forEach((s,i)=>{const id=k+'-'+i;if(SONGS[id])return;
-  SONGS[id]={id,k,y:label(k),yr:isMonthKey(k)?+k.split('.')[0]:+k,i,t:s[0],a:s[1],al:s[2],img:s[3],sc:s[4],n:s[5],dz:s[6]||0,auto:isMonthKey(k)}}))}
+  SONGS[id]={id,k,y:label(k),yr:isCatKey(k)?(+s[7]||0):isMonthKey(k)?+k.split('.')[0]:+k,i,t:s[0],a:s[1],al:s[2],img:s[3],sc:s[4],n:s[5],dz:s[6]||0,auto:isMonthKey(k)||isCatKey(k)}}))}
 addSongs(RAW_Y);
-let GAME='year';                       // 'year' or a decade like '1980s' (month-by-month)
+let GAME='year';
+const KIND=()=>GAME==='year'?'year':GAME.startsWith('c:')?'cat':'month';
+const UNIT=()=>({year:'YEAR',month:'MONTH',cat:'ROUND'})[KIND()];
+const CATDATA={};let CATNAME='';
+const CATTYPES=[['genre','GENRES'],['scene','SCENES'],['artist','ARTISTS'],['album','ALBUMS']];                       // 'year' or a decade like '1980s' (month-by-month)
 let MONTHS=null;                       // month data, loaded on demand
 const DECADES=['1960s','1970s','1980s','1990s','2000s','2010s','2020s'];
 const COVER=s=>'https://cdn2.albumoftheyear.org/400x0/album/'+s.img;
@@ -222,8 +228,13 @@ const gk=k=>GAME==='year'?k:k+'-'+GAME;
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=40');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=41');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
+  if(g.startsWith('c:')){const [,t,id]=g.split(':');try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=41')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA');return false}
+    const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('CATEGORY NOT FOUND');return false}
+    const raw={};c.rounds.forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk;LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
+    store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
+    picks=store.get(gk('picks'),{});yi=Math.min(store.get(gk('yi'),0),Math.max(0,YEARS.length-1));dm=null;return true}
   if(g!=='year'){try{await loadMonths()}catch(e){toast('COULD NOT LOAD MONTH DATA');return false}}
   store.set(gk('yi'),yi);GAME=g;store.set('game',g);
   if(g==='year'){RAW=RAW_Y;YEARS=YEAR_KEYS}
@@ -444,25 +455,35 @@ function render(){
   else if(view==='picks')app.innerHTML=picksHTML();
   else if(view==='dm')app.innerHTML=dmHTML();
   else if(view==='dmrank')app.innerHTML=dmRankHTML();
+  else if(view==='cats')app.innerHTML=catsHTML();
   bind();
 }
 function menuHTML(){
   const n=Object.keys(picks).length, cont=n>0&&n<YEARS.length;
   return `<div class="menu">
-    <div class="pills"><span class="${GAME==='year'?'on':''}" data-game="year">BY YEAR</span><span class="${GAME!=='year'?'on':''}" data-game="${GAME==='year'?store.get('lastdec','1980s'):GAME}">MONTH BY MONTH</span></div>
-    ${GAME!=='year'?`<div class="pills decs">${DECADES.map(d=>`<span class="${d===GAME?'on':''}" data-game="${d}">${d.slice(2)}</span>`).join('')}</div>`:''}
-    <div class="src"><span class="on">AOTY USERS' TOP SONGS${GAME!=='year'?' · THE '+GAME.toUpperCase():''}</span></div>
+    <div class="pills"><span class="${GAME==='year'?'on':''}" data-game="year">BY YEAR</span><span class="${KIND()==='month'?'on':''}" data-game="${KIND()==='month'?GAME:store.get('lastdec','1980s')}">MONTH BY MONTH</span><span class="${KIND()==='cat'?'on':''}" data-gocats>CATEGORIES</span></div>
+    ${KIND()==='month'?`<div class="pills decs">${DECADES.map(d=>`<span class="${d===GAME?'on':''}" data-game="${d}">${d.slice(2)}</span>`).join('')}</div>`:''}
+    <div class="src"><span class="on">AOTY USERS' TOP SONGS${KIND()==='month'?' · THE '+GAME.toUpperCase():KIND()==='cat'?' · '+esc(CATNAME).toUpperCase():''}</span></div>${KIND()==='cat'?`<div class="pills decs"><span class="on" data-gocats>CHANGE CATEGORY</span></div>`:''}
     <h1 class="gold-title"><small>SAVE ONE</small>SONG</h1>
     <div class="mbtns">
       ${cont?`<button class="mbtn primary" data-go="continue">CONTINUE</button>`:''}
       <button class="mbtn ${cont?'':'primary'}" data-go="new">NEW</button>
       <button class="mbtn" data-go="dm">DEATHMATCH</button>
-      <button class="mbtn" data-go="years">SKIP TO ${GAME==='year'?'YEAR':'MONTH'}</button>
-      <button class="mbtn" data-go="rank">RANKINGS</button>
-      <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} ${GAME==='year'?'':'MONTHS '}SAVED</small></button>
+      <button class="mbtn" data-go="years">SKIP TO ${UNIT()}</button>
+      ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">RANKINGS</button>`:''}
+      <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} ${GAME==='year'?'':UNIT()+'S '}SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 4.0 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 4.1 · 20 NOV</div></div>`;
 }
+let catTab='genre';
+function catsHTML(){
+  const list=CATDATA[catTab];
+  return `${chrome()}<div class="page"><h1 class="gold-title">CATEGORIES</h1>
+    <div class="pills" style="margin:0 auto 26px;width:max-content">${CATTYPES.map(([t,n])=>`<span class="${t===catTab?'on':''}" data-cattab="${t}">${n}</span>`).join('')}</div>
+    <p class="lead">${({genre:'EACH ROUND IS ONE YEAR OF THE GENRE: THE BEST TRACK FROM ITS 10 TOP-RATED ALBUMS',scene:'EACH ROUND IS ONE YEAR OF THE SCENE: THE BEST TRACK FROM ITS 10 TOP-RATED ALBUMS',artist:'EACH ROUND IS ONE OF THE ARTIST\'S ALBUMS: SAVE YOUR FAVOURITE TRACK',album:'EACH ROUND IS ONE ACCLAIMED ALBUM: SAVE YOUR FAVOURITE TRACK'})[catTab]}</p>
+    ${list?`<div class="ygrid cgrid">${list.map(c=>{const id='c:'+catTab+':'+c.id;const n=Object.keys(store.get('picks-'+id,{})).length;return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${c.rounds.length} ROUNDS</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
+}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=41')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
@@ -473,13 +494,14 @@ function gameHTML(){
       <div class="info"><div class="t" title="${esc(s.t)}">${esc(s.t)}</div><div class="a" title="${esc(s.a)}">${esc(s.a)}</div><button class="save" data-save="${i}">SAVE</button></div></div>`}).join('');
   return `<div class="fast ${fast?'on':''}" data-fast><div class="tog"></div>FAST MODE</div>
     ${chrome()}
-    <div class="top"><div>${res?`<div class="year gold-title" style="font-size:46px">AOTY Scores</div><div class="sub">CLICK TO CONTINUE</div>`:`<div class="year gold-title ${isMonthKey(y)?'mon':''}">${label(y)}</div>`}</div></div>
+    <div class="top"><div>${res?`<div class="year gold-title" style="font-size:46px">AOTY Scores</div><div class="sub">CLICK TO CONTINUE</div>`:`<div class="year gold-title ${isMonthKey(y)?'mon':''} ${isCatKey(y)?(label(y).length>22?'cat long':'cat'):''}">${esc(label(y))}</div>`}</div></div>
     <div class="stage ${res?'res':''}" id="stage"><div class="grid">${cards}</div></div>
-    ${phase==='reveal'&&!fast&&!res?`<div class="skipbar"><button data-skip>SKIP ▸</button><button data-skipall>SKIP ALL</button></div>`:''}<div class="credit">SONGS FROM ALBUMOFTHEYEAR.ORG · ${GAME==='year'?(y<2000?'200':'500'):'100'}+ RATINGS${GAME==='year'?'':' · BY ALBUM RELEASE DATE'} · CLIPS VIA DEEZER · FULL SONGS VIA YOUTUBE</div><button class="prev" data-prev ${yi===0?'disabled':''}>← PREV<span class="long">IOUS ${GAME==='year'?'YEAR':'MONTH'}</span></button>
+    ${phase==='reveal'&&!fast&&!res?`<div class="skipbar"><button data-skip>SKIP ▸</button><button data-skipall>SKIP ALL</button></div>`:''}<div class="credit">SONGS FROM ALBUMOFTHEYEAR.ORG · ${KIND()==='cat'?esc(CATNAME).toUpperCase():(GAME==='year'?(y<2000?'200':'500'):'100')+'+ RATINGS'}${KIND()==='month'?' · BY ALBUM RELEASE DATE':''} · CLIPS VIA DEEZER · FULL SONGS VIA YOUTUBE</div><button class="prev" data-prev ${yi===0?'disabled':''}>← PREV<span class="long">IOUS ${UNIT()}</span></button>
     <div class="mute"><button data-mute>${muted?'UNMUTE':'MUTE'} MUSIC</button><button class="ic" data-mute>${muted?ICON.spkoff:ICON.spk}</button></div>
     ${!seenTip?`<div class="modal" data-tip><div class="mbox"><h2 class="gold-title">DID YOU KNOW?</h2><p>${TOUCH?'USE <b>SKIP</b> TO MOVE TO THE NEXT PREVIEW, OR <b>SKIP ALL</b>.<br>ONCE ALL CARDS APPEAR, TAP A COVER TO PLAY OR PAUSE.<br>CHOOSE <b>SAVE</b> TO KEEP THAT SONG.':'CLICK OR PRESS <b>SKIP</b> FOR THE NEXT PREVIEW. HOLD LEFT CLICK TO SKIP SILENTLY.<br>ONCE ALL CARDS APPEAR, CLICK A COVER TO PLAY OR PAUSE.<br>CHOOSE <b>SAVE</b> TO KEEP THAT SONG. SPACE PAUSES.'}</p></div></div>`:''}`;
 }
 function yearsHTML(){
+  if(KIND()==='cat')return `${chrome()}<div class="page"><h1 class="gold-title">SKIP TO ROUND</h1><p class="lead">${esc(CATNAME).toUpperCase()} · TEAL ROUNDS ALREADY HAVE A SAVED SONG</p><div class="ygrid cgrid">${YEARS.map(y=>`<button class="${picks[y]!=null?'done':''}" data-year="${esc(y)}">${esc(label(y))}</button>`).join('')}</div></div>`;
   const M=GAME!=='year';const grp=y=>M?y.slice(0,4):Math.floor(y/10)*10+'S';
   const decs={};YEARS.forEach(y=>{(decs[grp(y)]=decs[grp(y)]||[]).push(y)});
   return `${chrome()}<div class="page"><h1 class="gold-title">SKIP TO ${M?'MONTH':'YEAR'}</h1><p class="lead">TEAL ${M?'MONTHS':'YEARS'} ALREADY HAVE A SAVED SONG</p>
@@ -492,7 +514,7 @@ function rankHTML(){
 }
 function picksHTML(){
   const ys=YEARS.filter(y=>picks[y]!=null);
-  return `${chrome()}<div class="page"><h1 class="gold-title">YOUR PICKS</h1><p class="lead">${ys.length} OF ${YEARS.length} ${GAME==='year'?'YEARS':'MONTHS'} SAVED${ys.length?' · CLICK A COVER TO PLAY':''}</p>
+  return `${chrome()}<div class="page"><h1 class="gold-title">YOUR PICKS</h1><p class="lead">${ys.length} OF ${YEARS.length} ${UNIT()}S SAVED${ys.length?' · CLICK A COVER TO PLAY':''}</p>
     ${ys.length?`<div class="picks">${ys.map(y=>{const s=SONGS[y+'-'+picks[y]];return `<div class="pk">${coverEl(s)}<div class="y">${shortLabel(y)}</div><div class="t">${esc(s.t)}</div><div class="a">${esc(s.a)}</div></div>`}).join('')}</div>`:`<div class="mbtns" style="margin:0 auto"><button class="mbtn primary" data-go="new">START SAVING</button></div>`}</div>
     <div class="corner">${ys.length?`<button class="cbtn" data-copy>COPY LIST</button><button class="cbtn" data-clear>CLEAR ALL</button>`:''}</div>`;
 }
@@ -505,7 +527,7 @@ function dmHTML(){
   if(!dm||dm.done||dm.round.length<2){
     if(dm&&dm.round.length===1){const champ=dm.round[0];const h=store.get(gk('champs'),[]);h.push(champ);store.set(gk('champs'),h);dm={done:champ}}
     if(dm&&dm.done){const s=SONGS[dm.done];return `${chrome()}<div class="page dmwrap"><h1 class="gold-title">LAST ONE STANDING</h1><p class="lead">YOUR CHAMPION</p><div class="dm"><div class="card in">${coverEl(s)}<div class="info"><div class="t">${esc(s.t)}</div><div class="a">${esc(s.a)} · ${s.y}</div></div></div></div><div class="mbtns"><button class="mbtn primary" data-dmstart>RUN IT BACK</button><button class="mbtn" data-go="dmrank">DEATHMATCH RANKINGS</button></div></div>`}
-    return `${chrome()}<div class="page dmwrap" style="padding-top:140px"><h1 class="gold-title">LAST ONE<br>STANDING</h1><p class="lead" style="max-width:560px;margin:22px auto">YOUR TOP PICK FROM EACH ${GAME==='year'?'YEAR':'MONTH'} GETS SHUFFLED INTO HEAD-TO-HEAD ROUNDS. KEEP CHOOSING UNTIL ONLY ONE IS LEFT STANDING.</p><p class="lead">${n} ${GAME==='year'?'YEARLY':'MONTHLY'} PICKS SAVED</p>
+    return `${chrome()}<div class="page dmwrap" style="padding-top:140px"><h1 class="gold-title">LAST ONE<br>STANDING</h1><p class="lead" style="max-width:560px;margin:22px auto">YOUR TOP PICK FROM EACH ${UNIT()} GETS SHUFFLED INTO HEAD-TO-HEAD ROUNDS. KEEP CHOOSING UNTIL ONLY ONE IS LEFT STANDING.</p><p class="lead">${n} ${({year:'YEARLY',month:'MONTHLY',cat:'ROUND'})[KIND()]} PICKS SAVED</p>
       <div class="mbtns"><button class="mbtn primary" data-dmstart ${n<2?'disabled style="opacity:.4"':''}>START DEATHMATCH</button><button class="mbtn" data-go="dmrank">DEATHMATCH RANKINGS</button></div></div>
       <div class="corner">${store.get(gk('champs'),[]).length?`<button class="cbtn" data-dmclear>CLEAR ALL</button>`:''}</div>`;
   }
@@ -545,7 +567,7 @@ function save(i){
 }
 function afterResults(){
   const next=YEARS.findIndex((y,i)=>i>yi&&picks[y]==null);
-  if(yi<YEARS.length-1){enterYear(yi+1)}else{view='picks';render();toast(next<0?'ALL '+(GAME==='year'?'YEARS':'MONTHS')+' SAVED — TRY DEATHMATCH':'END OF THE LINE')}
+  if(yi<YEARS.length-1){enterYear(yi+1)}else{view='picks';render();toast(next<0?'ALL '+UNIT()+'S SAVED — TRY DEATHMATCH':'END OF THE LINE')}
 }
 
 /* ---------- events ---------- */
@@ -559,7 +581,9 @@ function bind(){
     else if(g==='continue'){const f=YEARS.findIndex(y=>picks[y]==null);enterYear(f<0?0:f)}
     else{view=g;if(g==='dm')dm=null;render()}});
   document.querySelectorAll('[data-year]').forEach(b=>b.onclick=()=>enterYear(YEARS.findIndex(y=>String(y)===b.dataset.year)));
-  document.querySelectorAll('[data-game]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const g=b.dataset.game;if(g===GAME)return;if(g!=='year')store.set('lastdec',g);b.textContent='LOADING…';if(await setGame(g))render();else render()});
+  document.querySelectorAll('[data-game]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const g=b.dataset.game;if(g===GAME){if(view==='cats'){view='menu';render()}return}if(/^\d{4}s$/.test(g))store.set('lastdec',g);b.textContent='LOADING…';if(await setGame(g)){view='menu';render()}else render()});
+  document.querySelectorAll('[data-gocats]').forEach(b=>b.onclick=e=>{e.stopPropagation();openCats(GAME.startsWith('c:')?GAME.split(':')[1]:null)});
+  document.querySelectorAll('[data-cattab]').forEach(b=>b.onclick=e=>{e.stopPropagation();openCats(b.dataset.cattab)});
   document.querySelectorAll('[data-play]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.play;if(view==='game'&&phase==='reveal'){if(TOUCH)return;revealAll(false)}
     if(playing===id){togglePause()}else play(id)});
   document.querySelectorAll('[data-full]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.full;if(view==='game'&&phase==='reveal'){if(TOUCH)return;revealAll(true)}ytPlay(id,true)});
@@ -570,7 +594,7 @@ function bind(){
   const p=document.querySelector('[data-prev]');if(p)p.onclick=e=>{e.stopPropagation();enterYear(yi-1)};
   document.querySelectorAll('[data-mute]').forEach(b=>b.onclick=e=>{e.stopPropagation();muted=!muted;store.set('muted',muted);applyMute();const m=document.querySelectorAll('.mute button');m[0].textContent=(muted?'UNMUTE':'MUTE')+' MUSIC';m[1].innerHTML=muted?ICON.spkoff:ICON.spk});
   const tip=document.querySelector('[data-tip]');if(tip)tip.onclick=e=>{e.stopPropagation();seenTip=true;store.set('tip',true);tip.remove();if(!fast)advance()};
-  const cp=document.querySelector('[data-copy]');if(cp)cp.onclick=async()=>{const lines=['SAVE ONE SONG — MY PICKS'+(GAME==='year'?'':' — THE '+GAME.toUpperCase())];YEARS.forEach(y=>{if(picks[y]!=null){const s=SONGS[y+'-'+picks[y]];lines.push(`${shortLabel(y)}  ${s.t} — ${s.a}`)}});try{await navigator.clipboard.writeText(lines.join('\n'));toast('COPIED')}catch(e){toast('COPY BLOCKED BY BROWSER')}};
+  const cp=document.querySelector('[data-copy]');if(cp)cp.onclick=async()=>{const lines=['SAVE ONE SONG — MY PICKS'+(KIND()==='month'?' — THE '+GAME.toUpperCase():KIND()==='cat'?' — '+CATNAME.toUpperCase():'')];YEARS.forEach(y=>{if(picks[y]!=null){const s=SONGS[y+'-'+picks[y]];lines.push(`${shortLabel(y)}  ${s.t} — ${s.a}`)}});try{await navigator.clipboard.writeText(lines.join('\n'));toast('COPIED')}catch(e){toast('COPY BLOCKED BY BROWSER')}};
   const cl=document.querySelector('[data-clear]');if(cl)cl.onclick=()=>{if(cl.dataset.armed){picks={};store.set(gk('picks'),picks);render();toast('PICKS CLEARED')}else{cl.dataset.armed=1;cl.textContent='CLICK AGAIN TO CLEAR';setTimeout(()=>{if(cl.isConnected){delete cl.dataset.armed;cl.textContent='CLEAR ALL'}},2500)}};
   const dmc=document.querySelector('[data-dmclear]');if(dmc)dmc.onclick=()=>{store.set(gk('champs'),[]);render();toast('DEATHMATCH HISTORY CLEARED')};
   document.querySelectorAll('[data-dmstart]').forEach(b=>b.onclick=()=>{if(YEARS.filter(y=>picks[y]!=null).length<2)return;dmStart();render()});
