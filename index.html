@@ -236,9 +236,9 @@ const gk=k=>GAME==='year'?k:k+'-'+GAME;
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=47');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=48');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
-  if(g.startsWith('c:')){const [,t,id]=g.split(':');try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=47')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA');return false}
+  if(g.startsWith('c:')){const [,t,id]=g.split(':');try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=48')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('CATEGORY NOT FOUND');return false}
     const raw={};c.rounds.forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk;LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -482,7 +482,7 @@ function menuHTML(){
       ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">RANKINGS</button>`:''}
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} ${GAME==='year'?'':UNIT()+'S '}SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 4.7 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 4.8 · 20 NOV</div></div>`;
 }
 /* ---------- sharing ---------- */
 const B36='0123456789abcdefghijklmnopqrstuvwxyz';
@@ -546,7 +546,7 @@ function catsHTML(){
     <p class="lead">${({genre:'EACH ROUND IS ONE YEAR OF THE GENRE: THE BEST TRACK FROM ITS 10 TOP-RATED ALBUMS',scene:'EACH ROUND IS ONE YEAR OF THE SCENE: THE BEST TRACK FROM ITS 10 TOP-RATED ALBUMS',artist:'EACH ROUND IS ONE OF THE ARTIST\'S ALBUMS: SAVE YOUR FAVOURITE TRACK',album:'EACH ROUND IS ONE ACCLAIMED ALBUM: SAVE YOUR FAVOURITE TRACK'})[catTab]}</p>
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const id='c:'+catTab+':'+c.id;const n=Object.keys(store.get('picks-'+id,{})).length;return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${c.rounds.length} ROUNDS</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=47')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=48')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
