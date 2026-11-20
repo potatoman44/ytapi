@@ -259,7 +259,7 @@ player.onended=()=>{if(mode==='clip'&&playing===current){playing=null;markPlayin
 player.onplaying=()=>{if(mode==='clip'&&playing)setLoading(playing,false);markPlaying()};
 player.onpause=()=>markPlaying();
 // clips that open with silence or an unrepresentative intro start a few seconds in
-const CLIP_START={'1963-0':6,'1969-2':6};
+const CLIP_START={'1963-0':6,'1969-2':20};
 function seekStart(id){const t=CLIP_START[id]||0;if(!t)return;
   const go=()=>{try{player.currentTime=t}catch(e){}};
   if(player.readyState>=1)go();else player.addEventListener('loadedmetadata',go,{once:true})}
@@ -410,7 +410,7 @@ function menuHTML(){
       <button class="mbtn" data-go="rank">RANKINGS</button>
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 2.5 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 2.6 · 20 NOV</div></div>`;
 }
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
