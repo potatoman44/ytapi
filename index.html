@@ -420,7 +420,7 @@ function menuHTML(){
       <button class="mbtn" data-go="rank">RANKINGS</button>
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 3.2 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 3.3 · 20 NOV</div></div>`;
 }
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
@@ -496,7 +496,10 @@ function advance(){
 function hideSkip(){const b=document.querySelector('.skipbar');if(b)b.remove()}
 function revealAll(silent){clearTimeout(revealTimer);revealed=10;phase='choose';hideSkip();if(silent)stopAudio();document.querySelectorAll('.card').forEach(c=>c.classList.add('in'))}
 function save(i){
-  const y=YEARS[yi];picks[y]=i;store.set('picks',picks);stopAudio();phase='results';resultsFor=y;render();
+  const y=YEARS[yi];picks[y]=i;store.set('picks',picks);clearTimeout(revealTimer);hideSkip();phase='results';resultsFor=y;render();
+  // keep the chosen song playing (its whole clip) until the player moves on
+  const id=y+'-'+i;
+  if(playing===id&&!isPaused())markPlaying();else play(id);
 }
 function afterResults(){
   const next=YEARS.findIndex((y,i)=>i>yi&&picks[y]==null);
@@ -544,7 +547,11 @@ document.addEventListener('keydown',e=>{
 $('#keysave').onclick=()=>{YTKEY=$('#keyin').value.trim();store.set('ytkey',YTKEY);quotaOut=false;$('#keymodal').classList.remove('on');toast(YTKEY?'KEY SAVED':'KEY CLEARED');if(view==='menu')render()};
 $('#keyclose').onclick=()=>$('#keymodal').classList.remove('on');
 $('#keyin').onkeydown=e=>{if(e.key==='Enter')$('#keysave').click()};
-$('#dockx').onclick=()=>{stopAudio();$('#dock').classList.remove('on');document.body.classList.remove('docked')};
+$('#dockx').onclick=()=>{
+  // only stop YouTube; leave a Deezer clip that's playing alone
+  clearTimeout(kick);if(ytReady)ytp.stopVideo();ytPaused=true;
+  if(mode==='yt'&&playing){setLoading(playing,false);playing=null;markPlaying()}
+  $('#dock').classList.remove('on');document.body.classList.remove('docked')};
 yi=Math.min(store.get('yi',0),YEARS.length-1);
 render();
 </script>
