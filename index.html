@@ -236,11 +236,11 @@ const gk=k=>GAME==='year'?k:k+'-'+GAME;
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=49');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=50');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
-  if(g.startsWith('c:')){const [,t,id]=g.split(':');try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=49')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA');return false}
+  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=50')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('CATEGORY NOT FOUND');return false}
-    const raw={};c.rounds.forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk;LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
+    const raw={};catRounds(t,c,multi).forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk+(multi?'~m':'');LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
     picks=store.get(gk('picks'),{});yi=Math.min(store.get(gk('yi'),0),Math.max(0,YEARS.length-1));dm=null;return true}
   if(g!=='year'){try{await loadMonths()}catch(e){toast('COULD NOT LOAD MONTH DATA');return false}}
@@ -472,7 +472,7 @@ function menuHTML(){
   return `<div class="menu">
     <div class="pills"><span class="${GAME==='year'?'on':''}" data-game="year">BY YEAR</span><span class="${KIND()==='month'?'on':''}" data-game="${KIND()==='month'?GAME:store.get('lastdec','1980s')}">MONTH BY MONTH</span><span class="${KIND()==='cat'?'on':''}" data-gocats>CATEGORIES</span></div>
     ${KIND()==='month'?`<div class="pills decs">${DECADES.map(d=>`<span class="${d===GAME?'on':''}" data-game="${d}">${d.slice(2)}</span>`).join('')}</div>`:''}
-    <div class="src"><span class="on">AOTY USERS' TOP SONGS${KIND()==='month'?' · THE '+GAME.toUpperCase():KIND()==='cat'?' · '+esc(CATNAME).toUpperCase():''}</span></div>${KIND()==='cat'?`<div class="pills decs"><span class="on" data-gocats>CHANGE CATEGORY</span></div>`:''}
+    <div class="src"><span class="on">AOTY USERS' TOP SONGS${KIND()==='month'?' · THE '+GAME.toUpperCase():KIND()==='cat'?' · '+esc(CATNAME).toUpperCase():''}</span></div>${KIND()==='cat'?`<div class="pills decs"><span class="on" data-gocats>CHANGE CATEGORY</span></div>${isAlbumRounds(GAME.split(':')[1])?`<div class="pills decs"><span class="${GAME.endsWith(':multi')?'':'on'}" data-game="${GAME.replace(/:multi$/,'')}">ONE PER ALBUM</span><span class="${GAME.endsWith(':multi')?'on':''}" data-game="${GAME.replace(/:multi$/,'')+':multi'}">MULTIPLE PER ALBUM</span></div>`:''}`:''}
     <h1 class="gold-title"><small>SAVE ONE</small>SONG</h1>
     <div class="mbtns">
       ${cont?`<button class="mbtn primary" data-go="continue">CONTINUE</button>`:''}
@@ -482,7 +482,7 @@ function menuHTML(){
       ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">RANKINGS</button>`:''}
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} ${GAME==='year'?'':UNIT()+'S '}SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 4.9 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 5.0 · 20 NOV</div></div>`;
 }
 /* ---------- sharing ---------- */
 const B36='0123456789abcdefghijklmnopqrstuvwxyz';
@@ -538,15 +538,30 @@ async function openShare(){
     if(navigator.share){try{await navigator.share({title:'Save One Song',text,url});return}catch(e){if(e.name==='AbortError')return}}
     m.querySelector('[data-shdl]').click();toast('IMAGE DOWNLOADED — LINK IS BELOW')};
 }
+// genre/scene rounds hold albums with their best tracks; build songs for "one per album" or "multiple per album"
+const isAlbumRounds=t=>t==='genre'||t==='scene';
+function catRounds(t,c,multi){
+  if(!isAlbumRounds(t))return c.rounds;
+  const out=[];
+  for(const [yr,albums] of c.rounds){
+    let songs;
+    if(!multi){if(albums.length<(t==='genre'?5:3))continue;songs=albums.map(([al,ar,img,y,tr])=>{const x=tr[0];return [x[0],ar,al,img,x[1],x[2],x[3]||0,y]})}
+    else{const all=[];albums.forEach(([al,ar,img,y,tr],ai)=>tr.forEach((x,ti)=>all.push([[x[0],ar,al,img,x[1],x[2],x[3]||0,y],ai,ti])));
+      all.sort((a,b)=>b[0][4]-a[0][4]||b[0][5]-a[0][5]);songs=all.slice(0,10).sort((a,b)=>a[1]-b[1]||a[2]-b[2]).map(x=>x[0]);if(songs.length<5)continue}
+    out.push([yr,yr,songs])}
+  return out;
+}
+const catMulti=()=>store.get('catmulti',false);
 let catTab='genre';
 function catsHTML(){
   const list=CATDATA[catTab];
   return `${chrome()}<div class="page"><h1 class="gold-title">CATEGORIES</h1>
     <div class="pills" style="margin:0 auto 26px;width:max-content">${CATTYPES.map(([t,n])=>`<span class="${t===catTab?'on':''}" data-cattab="${t}">${n}</span>`).join('')}</div>
-    <p class="lead">${({genre:'EACH ROUND IS ONE YEAR OF THE GENRE: THE BEST TRACK FROM ITS 10 TOP-RATED ALBUMS',scene:'EACH ROUND IS ONE YEAR OF THE SCENE: THE BEST TRACK FROM ITS 10 TOP-RATED ALBUMS',artist:'EACH ROUND IS ONE OF THE ARTIST\'S ALBUMS: SAVE YOUR FAVOURITE TRACK',album:'EACH ROUND IS ONE ACCLAIMED ALBUM: SAVE YOUR FAVOURITE TRACK'})[catTab]}</p>
-    ${list?`<div class="ygrid cgrid">${list.map(c=>{const id='c:'+catTab+':'+c.id;const n=Object.keys(store.get('picks-'+id,{})).length;return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${c.rounds.length} ROUNDS</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
+    <p class="lead">${({genre:'EACH ROUND IS ONE YEAR OF THE GENRE, FROM ITS 10 TOP-RATED ALBUMS: THE BEST TRACK OF EACH, OR THE 10 BEST TRACKS OVERALL',scene:'EACH ROUND IS ONE YEAR OF THE SCENE, FROM ITS 10 TOP-RATED ALBUMS: THE BEST TRACK OF EACH, OR THE 10 BEST TRACKS OVERALL',artist:'EACH ROUND IS ONE OF THE ARTIST\'S ALBUMS: SAVE YOUR FAVOURITE TRACK',album:'EACH ROUND IS ONE ACCLAIMED ALBUM: SAVE YOUR FAVOURITE TRACK'})[catTab]}</p>
+    ${isAlbumRounds(catTab)?`<div class="pills decs" style="margin:0 auto 22px;width:max-content"><span class="${catMulti()?'':'on'}" data-catmulti="0">ONE SONG PER ALBUM</span><span class="${catMulti()?'on':''}" data-catmulti="1">MULTIPLE SONGS PER ALBUM</span></div>`:''}
+    ${list?`<div class="ygrid cgrid">${list.map(c=>{const m=isAlbumRounds(catTab)&&catMulti();const id='c:'+catTab+':'+c.id+(m?':multi':'');const n=Object.keys(store.get('picks-'+id,{})).length;const r=catRounds(catTab,c,m).length;if(!r)return '';return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${r} ROUNDS</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=49')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=50')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
@@ -646,6 +661,7 @@ function bind(){
   document.querySelectorAll('[data-year]').forEach(b=>b.onclick=()=>enterYear(YEARS.findIndex(y=>String(y)===b.dataset.year)));
   document.querySelectorAll('[data-game]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const g=b.dataset.game;if(g===GAME){if(view==='cats'){view='menu';render()}return}if(/^\d{4}s$/.test(g))store.set('lastdec',g);b.textContent='LOADING…';if(await setGame(g)){view='menu';render()}else render()});
   document.querySelectorAll('[data-gocats]').forEach(b=>b.onclick=e=>{e.stopPropagation();openCats(GAME.startsWith('c:')?GAME.split(':')[1]:null)});
+  document.querySelectorAll('[data-catmulti]').forEach(b=>b.onclick=e=>{e.stopPropagation();store.set('catmulti',b.dataset.catmulti==='1');render()});
   document.querySelectorAll('[data-cattab]').forEach(b=>b.onclick=e=>{e.stopPropagation();openCats(b.dataset.cattab)});
   document.querySelectorAll('[data-play]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.play;if(view==='game'&&phase==='reveal'){if(TOUCH)return;revealAll(false)}
     if(playing===id){togglePause()}else play(id)});
