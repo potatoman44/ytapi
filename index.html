@@ -153,6 +153,10 @@ body.docked .stage,body.docked .page{padding-bottom:330px}
 .modal.keym{display:none}.modal.keym.on{display:grid}
 #keyin{width:min(520px,80vw);background:#0b0b0b;border:1.5px solid var(--line);border-radius:6px;color:#fff;font:18px ui-monospace,monospace;padding:12px;letter-spacing:0}
 .toast{max-width:90vw;text-align:center}
+.skipbar{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);display:flex;gap:10px;z-index:7}
+.skipbar button{white-space:nowrap;border:2px solid var(--gold);border-radius:999px;padding:9px 20px;font-size:20px;color:#111;background:var(--gold);box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.skipbar button+button{background:rgba(12,12,12,.9);color:var(--gold)}
+@media(max-width:600px){.skipbar{bottom:64px}.skipbar button{font-size:17px;padding:8px 14px}}
 </style>
 </head>
 <body>
@@ -177,6 +181,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k,d){try{const v=localStorage.getItem('sos2-'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('sos2-'+k,JSON.stringify(v))}catch(e){}}};
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
+const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
 function toast(m,ms=2200){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),ms)}
 
@@ -340,7 +345,7 @@ function menuHTML(){
       <button class="mbtn" data-go="rank">RANKINGS</button>
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 1.6 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 1.7 · 20 NOV</div></div>`;
 }
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
@@ -355,9 +360,9 @@ function gameHTML(){
     ${chrome()}
     <div class="top"><div>${res?`<div class="year gold-title" style="font-family:'Bebas Neue';font-size:46px">AOTY RATING SHARE</div><div class="sub">CLICK TO CONTINUE</div>`:`<div class="year gold-title">${y}</div>`}</div></div>
     <div class="stage ${res?'res':''}" id="stage"><div class="grid">${cards}</div></div>
-    <div class="credit">SONGS FROM ALBUMOFTHEYEAR.ORG · 500+ RATINGS · CLIPS VIA DEEZER · FULL SONGS VIA YOUTUBE</div><button class="prev" data-prev ${yi===0?'disabled':''}>← PREV<span class="long">IOUS YEAR</span></button>
+    ${phase==='reveal'&&!fast&&!res?`<div class="skipbar"><button data-skip>SKIP ▸</button><button data-skipall>SKIP ALL</button></div>`:''}<div class="credit">SONGS FROM ALBUMOFTHEYEAR.ORG · 500+ RATINGS · CLIPS VIA DEEZER · FULL SONGS VIA YOUTUBE</div><button class="prev" data-prev ${yi===0?'disabled':''}>← PREV<span class="long">IOUS YEAR</span></button>
     <div class="mute"><button data-mute>${muted?'UNMUTE':'MUTE'} MUSIC</button><button class="ic" data-mute>${muted?ICON.spkoff:ICON.spk}</button></div>
-    ${!seenTip?`<div class="modal" data-tip><div class="mbox"><h2 class="gold-title">DID YOU KNOW?</h2><p>CLICK TO SKIP A PREVIEW. HOLD LEFT CLICK TO SKIP SILENTLY.<br>ONCE ALL CARDS APPEAR, CLICK A COVER TO PLAY OR PAUSE.<br>CHOOSE <b>SAVE</b> TO KEEP THAT SONG. SPACE PAUSES.</p></div></div>`:''}`;
+    ${!seenTip?`<div class="modal" data-tip><div class="mbox"><h2 class="gold-title">DID YOU KNOW?</h2><p>${TOUCH?'USE <b>SKIP</b> TO MOVE TO THE NEXT PREVIEW, OR <b>SKIP ALL</b>.<br>ONCE ALL CARDS APPEAR, TAP A COVER TO PLAY OR PAUSE.<br>CHOOSE <b>SAVE</b> TO KEEP THAT SONG.':'CLICK OR PRESS <b>SKIP</b> FOR THE NEXT PREVIEW. HOLD LEFT CLICK TO SKIP SILENTLY.<br>ONCE ALL CARDS APPEAR, CLICK A COVER TO PLAY OR PAUSE.<br>CHOOSE <b>SAVE</b> TO KEEP THAT SONG. SPACE PAUSES.'}</p></div></div>`:''}`;
 }
 function yearsHTML(){
   const decs={};YEARS.forEach(y=>{(decs[Math.floor(y/10)*10]=decs[Math.floor(y/10)*10]||[]).push(y)});
@@ -408,13 +413,14 @@ function enterYear(i){
 function advance(){
   if(view!=='game'||phase!=='reveal'||fast)return;
   clearTimeout(revealTimer);
-  if(revealed>=10){phase='choose';stopAudio();return}
+  if(revealed>=10){phase='choose';stopAudio();hideSkip();return}
   revealed++;const card=document.querySelector(`.card[data-i="${revealed-1}"]`);if(card)card.classList.add('in');
   const s=SONGS[YEARS[yi]+'-'+(revealed-1)];
   play(s.id);
   revealTimer=setTimeout(advance,CLIP_MS);
 }
-function revealAll(silent){clearTimeout(revealTimer);revealed=10;phase='choose';if(silent)stopAudio();document.querySelectorAll('.card').forEach(c=>c.classList.add('in'))}
+function hideSkip(){const b=document.querySelector('.skipbar');if(b)b.remove()}
+function revealAll(silent){clearTimeout(revealTimer);revealed=10;phase='choose';hideSkip();if(silent)stopAudio();document.querySelectorAll('.card').forEach(c=>c.classList.add('in'))}
 function save(i){
   const y=YEARS[yi];picks[y]=i;store.set('picks',picks);stopAudio();phase='results';resultsFor=y;render();
 }
@@ -425,6 +431,8 @@ function afterResults(){
 
 /* ---------- events ---------- */
 function bind(){
+  document.querySelectorAll('[data-skip]').forEach(b=>b.onclick=e=>{e.stopPropagation();if(phase==='reveal'){stopAudio(false);advance()}});
+  document.querySelectorAll('[data-skipall]').forEach(b=>b.onclick=e=>{e.stopPropagation();revealAll(true)});
   document.querySelectorAll('[data-key]').forEach(b=>b.onclick=e=>{e.stopPropagation();openKey()});
   document.querySelectorAll('[data-go]').forEach(b=>b.onclick=e=>{e.stopPropagation();const g=b.dataset.go;stopAudio();
     if(g==='menu'){view='menu';render()}
@@ -450,10 +458,10 @@ function bind(){
 }
 // stage clicks: skip preview (click) / skip silently (hold); continue after results
 let holdT=null,held=false;
-document.addEventListener('pointerdown',e=>{if(view!=='game'||phase!=='reveal'||e.target.closest('button,a,.cv,[data-fast],.modal,.dock'))return;held=false;holdT=setTimeout(()=>{held=true;revealAll(true)},450)});
+document.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||view!=='game'||phase!=='reveal'||e.target.closest('button,a,.cv,[data-fast],.modal,.dock'))return;held=false;holdT=setTimeout(()=>{held=true;revealAll(true)},450)});
 document.addEventListener('pointerup',e=>{clearTimeout(holdT);if(view!=='game'||e.target.closest('button,a,[data-fast],.modal,.dock'))return;
   if(phase==='results'){afterResults();return}
-  if(phase==='reveal'&&!held&&!e.target.closest('.cv')){stopAudio(false);advance()}});
+  if(phase==='reveal'&&!held&&e.pointerType!=='touch'&&!e.target.closest('.cv')){stopAudio(false);advance()}});
 document.addEventListener('keydown',e=>{
   if(e.code==='Space'&&e.target.tagName!=='INPUT'){e.preventDefault();togglePause()}
   if(view==='game'&&phase==='results'&&(e.key==='Enter'||e.key==='ArrowRight'))afterResults();
