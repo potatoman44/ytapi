@@ -475,7 +475,7 @@ function menuHTML(){
       ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">RANKINGS</button>`:''}
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} ${GAME==='year'?'':UNIT()+'S '}SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 4.2 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 4.3 · 20 NOV</div></div>`;
 }
 /* ---------- sharing ---------- */
 const B36='0123456789abcdefghijklmnopqrstuvwxyz';
@@ -492,8 +492,8 @@ function sharedHTML(){
 function loadImg(src){return new Promise(res=>{const i=new Image();i.crossOrigin='anonymous';i.referrerPolicy='no-referrer';i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src})}
 async function shareImage(){
   const ys=YEARS.filter(y=>picks[y]!=null);const items=ys.map(y=>[y,SONGS[y+'-'+picks[y]]]);
-  const cols=items.length<=4?items.length||1:items.length<=9?3:items.length<=16?4:5;
-  const W=1080,pad=40,gap=20,cw=(W-pad*2-gap*(cols-1))/cols,ch=cw+78,rows=Math.ceil(items.length/cols),head=170;
+  const cols=Math.max(1,Math.min(8,items.length<=4?items.length:Math.ceil(Math.sqrt(items.length))));
+  const W=cols>=7?1440:1080,pad=40,gap=cols>=7?14:20,cw=(W-pad*2-gap*(cols-1))/cols,fs=Math.max(14,Math.min(23,cw/9)),ch=cw+fs*3.4,rows=Math.ceil(items.length/cols),head=170;
   const c=document.createElement('canvas');c.width=W;c.height=head+rows*(ch+gap)+70;const x=c.getContext('2d');
   try{await document.fonts.load('900 40px "Big Shoulders Display"');await document.fonts.load('italic 900 40px Fraunces')}catch(e){}
   const g=x.createLinearGradient(0,0,0,c.height);g.addColorStop(0,'#1a1024');g.addColorStop(1,'#0d0b12');x.fillStyle=g;x.fillRect(0,0,W,c.height);
@@ -506,8 +506,8 @@ async function shareImage(){
     if(imgs[n])x.drawImage(imgs[n],cx,cy,cw,cw);else{x.fillStyle='#2a1838';x.fillRect(cx,cy,cw,cw);x.fillStyle='#f1e9da';x.font='900 '+(cw/3)+'px sans-serif';x.fillText('♪',cx+cw/2,cy+cw*0.62)}
     x.fillStyle='#ff6b3d';x.fillRect(cx,cy+cw-26,Math.min(cw,x.measureText?cw:cw),26);
     x.fillStyle='#0d0b12';x.font='900 18px "Big Shoulders Display",Impact,sans-serif';x.textAlign='center';x.fillText(fit(String(shortLabel(y)).toUpperCase(),cw-10),cx+cw/2,cy+cw-7);
-    x.fillStyle='#f1e9da';x.font='800 '+(cols>=5?19:23)+'px "Big Shoulders Display",Impact,sans-serif';x.fillText(fit(s.t.toUpperCase(),cw),cx+cw/2,cy+cw+28);
-    x.fillStyle='#b9aec4';x.font='800 '+(cols>=5?16:19)+'px "Big Shoulders Display",Impact,sans-serif';x.fillText(fit(s.a.replace(/\s*\[.*?\]/g,'').toUpperCase(),cw),cx+cw/2,cy+cw+52)});
+    x.fillStyle='#f1e9da';x.font='800 '+fs+'px "Big Shoulders Display",Impact,sans-serif';x.fillText(fit(s.t.toUpperCase(),cw),cx+cw/2,cy+cw+fs*1.25);
+    x.fillStyle='#b9aec4';x.font='800 '+Math.round(fs*0.82)+'px "Big Shoulders Display",Impact,sans-serif';x.fillText(fit(s.a.replace(/\s*\[.*?\]/g,'').toUpperCase(),cw),cx+cw/2,cy+cw+fs*2.3)});
   x.fillStyle='#6f6480';x.font='800 20px "Big Shoulders Display",Impact,sans-serif';x.textAlign='center';x.fillText(location.host+location.pathname,W/2,c.height-28);
   return c;
 }
