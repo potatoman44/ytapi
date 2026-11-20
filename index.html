@@ -420,20 +420,19 @@ function menuHTML(){
       <button class="mbtn" data-go="rank">RANKINGS</button>
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 3.1 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 3.2 · 20 NOV</div></div>`;
 }
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
   const pickedId=picks[y]!=null?y+'-'+picks[y]:null;
-  const tot=RAW[y].reduce((a,s)=>a+s[5],0);
   const cards=RAW[y].map((_,i)=>{const s=SONGS[y+'-'+i];const shown=fast||res||i<revealed;
-    const pct=res?(s.n?`<div class="pct">${(s.n/tot*100).toFixed(1).replace('.0','')}%<small>${s.sc} · ${s.n.toLocaleString()} RATINGS</small></div>`:`<div class="pct">—<small>${s.sc} · UNDER 500 RATINGS</small></div>`):'';
+    const pct=res?`<div class="pct">${s.sc}<small>${s.n?s.n.toLocaleString()+' RATINGS':'AOTY SCORE'}</small></div>`:'';
     return `<div class="card ${shown?'in':''}" data-i="${i}">${coverEl(s,pct).replace('class="cv"',`class="cv ${pickedId===s.id&&res?'picked':''}"`)}
       <div class="info"><div class="t" title="${esc(s.t)}">${esc(s.t)}</div><div class="a" title="${esc(s.a)}">${esc(s.a)}</div><button class="save" data-save="${i}">SAVE</button></div></div>`}).join('');
   return `<div class="fast ${fast?'on':''}" data-fast><div class="tog"></div>FAST MODE</div>
     ${chrome()}
-    <div class="top"><div>${res?`<div class="year gold-title" style="font-size:46px">AOTY Rating Share</div><div class="sub">CLICK TO CONTINUE</div>`:`<div class="year gold-title">${y}</div>`}</div></div>
+    <div class="top"><div>${res?`<div class="year gold-title" style="font-size:46px">AOTY Scores</div><div class="sub">CLICK TO CONTINUE</div>`:`<div class="year gold-title">${y}</div>`}</div></div>
     <div class="stage ${res?'res':''}" id="stage"><div class="grid">${cards}</div></div>
     ${phase==='reveal'&&!fast&&!res?`<div class="skipbar"><button data-skip>SKIP ▸</button><button data-skipall>SKIP ALL</button></div>`:''}<div class="credit">SONGS FROM ALBUMOFTHEYEAR.ORG · 500+ RATINGS · CLIPS VIA DEEZER · FULL SONGS VIA YOUTUBE</div><button class="prev" data-prev ${yi===0?'disabled':''}>← PREV<span class="long">IOUS YEAR</span></button>
     <div class="mute"><button data-mute>${muted?'UNMUTE':'MUTE'} MUSIC</button><button class="ic" data-mute>${muted?ICON.spkoff:ICON.spk}</button></div>
