@@ -153,6 +153,7 @@ a{color:inherit;text-decoration:none}
 .pk .t{font-size:18px;line-height:1.05}
 .pk .a{font-size:13px;color:#b9a8c4;letter-spacing:.08em}
 .corner{position:fixed;right:20px;bottom:22px;display:flex;gap:10px;z-index:6}
+.cbtn.hot{background:var(--hot);color:var(--paperink)}.sharebox{min-height:0;gap:14px;max-height:92vh;overflow:auto}.shprev img{max-width:100%;max-height:46vh;border:2px solid var(--ink);display:block;margin:0 auto}.shbtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}.shbtns .mbtn{font-size:20px;padding:8px 18px;width:auto}.shurl{width:100%;font:inherit;font-size:14px;padding:8px;background:#0d0b12;color:var(--ink);border:1px solid #555;border-radius:3px}
 .cbtn{border:2px solid var(--ink);border-radius:4px;padding:9px 16px;font-size:17px;color:var(--ink);background:var(--deep);box-shadow:3px 3px 0 #000}
 .cbtn:hover{background:var(--hot);color:var(--paperink)}
 /* deathmatch */
@@ -228,9 +229,9 @@ const gk=k=>GAME==='year'?k:k+'-'+GAME;
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=41');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=42');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
-  if(g.startsWith('c:')){const [,t,id]=g.split(':');try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=41')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA');return false}
+  if(g.startsWith('c:')){const [,t,id]=g.split(':');try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=42')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('CATEGORY NOT FOUND');return false}
     const raw={};c.rounds.forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk;LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -456,6 +457,7 @@ function render(){
   else if(view==='dm')app.innerHTML=dmHTML();
   else if(view==='dmrank')app.innerHTML=dmRankHTML();
   else if(view==='cats')app.innerHTML=catsHTML();
+  else if(view==='shared')app.innerHTML=sharedHTML();
   bind();
 }
 function menuHTML(){
@@ -473,7 +475,61 @@ function menuHTML(){
       ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">RANKINGS</button>`:''}
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} ${GAME==='year'?'':UNIT()+'S '}SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 4.1 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 4.2 · 20 NOV</div></div>`;
+}
+/* ---------- sharing ---------- */
+const B36='0123456789abcdefghijklmnopqrstuvwxyz';
+const modeTitle=()=>KIND()==='year'?'BY YEAR':KIND()==='month'?'MONTH BY MONTH · THE '+GAME.toUpperCase():CATNAME.toUpperCase();
+function shareURL(){const code=YEARS.map(y=>picks[y]!=null?B36[picks[y]]:'_').join('').replace(/_+$/,'').replace(/_{2,35}/g,m=>'-'+B36[m.length]);
+  return location.origin+location.pathname+'?g='+encodeURIComponent(GAME)+'&p='+code}
+let SHARED=null;
+function sharedHTML(){
+  const ys=YEARS.filter(y=>SHARED[y]!=null&&SONGS[y+'-'+SHARED[y]]);
+  return `${chrome()}<div class="page"><h1 class="gold-title">SOMEONE'S PICKS</h1><p class="lead">${esc(modeTitle())} · ${ys.length} OF ${YEARS.length} SAVED · CLICK A COVER TO PLAY</p>
+    <div class="mbtns" style="margin:0 auto 30px"><button class="mbtn primary" data-go="menu">PLAY IT YOURSELF</button></div>
+    <div class="picks">${ys.map(y=>{const s=SONGS[y+'-'+SHARED[y]];return `<div class="pk">${coverEl(s)}<div class="y">${esc(shortLabel(y))}</div><div class="t">${esc(s.t)}</div><div class="a">${esc(s.a)}</div></div>`}).join('')}</div></div>`;
+}
+function loadImg(src){return new Promise(res=>{const i=new Image();i.crossOrigin='anonymous';i.referrerPolicy='no-referrer';i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src})}
+async function shareImage(){
+  const ys=YEARS.filter(y=>picks[y]!=null);const items=ys.map(y=>[y,SONGS[y+'-'+picks[y]]]);
+  const cols=items.length<=4?items.length||1:items.length<=9?3:items.length<=16?4:5;
+  const W=1080,pad=40,gap=20,cw=(W-pad*2-gap*(cols-1))/cols,ch=cw+78,rows=Math.ceil(items.length/cols),head=170;
+  const c=document.createElement('canvas');c.width=W;c.height=head+rows*(ch+gap)+70;const x=c.getContext('2d');
+  try{await document.fonts.load('900 40px "Big Shoulders Display"');await document.fonts.load('italic 900 40px Fraunces')}catch(e){}
+  const g=x.createLinearGradient(0,0,0,c.height);g.addColorStop(0,'#1a1024');g.addColorStop(1,'#0d0b12');x.fillStyle=g;x.fillRect(0,0,W,c.height);
+  x.fillStyle='#49d6c6';x.font='900 30px "Big Shoulders Display",Impact,sans-serif';x.textAlign='center';x.fillText('SAVE ONE SONG',W/2,62);
+  x.fillStyle='#ff6b3d';x.font='italic 900 58px Fraunces,Georgia,serif';x.fillText('My Picks',W/2+3,123);x.fillStyle='#f1e9da';x.fillText('My Picks',W/2,120);
+  x.fillStyle='#b9aec4';x.font='800 22px "Big Shoulders Display",Impact,sans-serif';x.fillText(modeTitle().slice(0,60),W/2,154);
+  const imgs=await Promise.all(items.map(([,s])=>loadImg(COVER(s))));
+  const fit=(t,w)=>{if(x.measureText(t).width<=w)return t;while(t.length>1&&x.measureText(t+'…').width>w)t=t.slice(0,-1);return t+'…'};
+  items.forEach(([y,s],n)=>{const cx=pad+(n%cols)*(cw+gap),cy=head+Math.floor(n/cols)*(ch+gap);
+    if(imgs[n])x.drawImage(imgs[n],cx,cy,cw,cw);else{x.fillStyle='#2a1838';x.fillRect(cx,cy,cw,cw);x.fillStyle='#f1e9da';x.font='900 '+(cw/3)+'px sans-serif';x.fillText('♪',cx+cw/2,cy+cw*0.62)}
+    x.fillStyle='#ff6b3d';x.fillRect(cx,cy+cw-26,Math.min(cw,x.measureText?cw:cw),26);
+    x.fillStyle='#0d0b12';x.font='900 18px "Big Shoulders Display",Impact,sans-serif';x.textAlign='center';x.fillText(fit(String(shortLabel(y)).toUpperCase(),cw-10),cx+cw/2,cy+cw-7);
+    x.fillStyle='#f1e9da';x.font='800 '+(cols>=5?19:23)+'px "Big Shoulders Display",Impact,sans-serif';x.fillText(fit(s.t.toUpperCase(),cw),cx+cw/2,cy+cw+28);
+    x.fillStyle='#b9aec4';x.font='800 '+(cols>=5?16:19)+'px "Big Shoulders Display",Impact,sans-serif';x.fillText(fit(s.a.replace(/\s*\[.*?\]/g,'').toUpperCase(),cw),cx+cw/2,cy+cw+52)});
+  x.fillStyle='#6f6480';x.font='800 20px "Big Shoulders Display",Impact,sans-serif';x.textAlign='center';x.fillText(location.host+location.pathname,W/2,c.height-28);
+  return c;
+}
+async function openShare(){
+  const url=shareURL();const m=document.createElement('div');m.className='modal';m.id='sharemodal';
+  m.innerHTML=`<div class="mbox sharebox"><h2 class="gold-title">SHARE YOUR PICKS</h2><div class="shprev"><p class="lead">DRAWING YOUR IMAGE…</p></div>
+    <div class="shbtns"><button class="mbtn primary" data-shimg>SHARE IMAGE</button><button class="mbtn" data-shdl>DOWNLOAD IMAGE</button><button class="mbtn" data-shlink>COPY LINK</button><button class="mbtn" data-shclose>CLOSE</button></div>
+    <input class="shurl" readonly value="${esc(url)}"></div>`;
+  document.body.appendChild(m);
+  m.onclick=e=>{if(e.target===m)m.remove()};m.querySelector('[data-shclose]').onclick=()=>m.remove();
+  m.querySelector('.shurl').onclick=e=>e.target.select();
+  m.querySelector('[data-shlink]').onclick=async()=>{try{await navigator.clipboard.writeText(url);toast('LINK COPIED')}catch(e){m.querySelector('.shurl').select();toast('PRESS CTRL+C TO COPY')}};
+  let blob=null;const c=await shareImage();
+  try{blob=await new Promise(r=>c.toBlob(r,'image/png'))}catch(e){}
+  const pv=m.querySelector('.shprev');pv.innerHTML='';const im=new Image();im.src=blob?URL.createObjectURL(blob):'';if(blob)pv.appendChild(im);else pv.innerHTML='<p class="lead">COULD NOT DRAW THE IMAGE — THE LINK STILL WORKS</p>';
+  const file=blob&&new File([blob],'save-one-song-picks.png',{type:'image/png'});
+  m.querySelector('[data-shdl]').onclick=()=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='save-one-song-picks.png';a.click()};
+  m.querySelector('[data-shimg]').onclick=async()=>{
+    const text='My Save One Song picks ('+modeTitle().toLowerCase()+')';
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],text:text+' '+url});return}catch(e){if(e.name==='AbortError')return}}
+    if(navigator.share){try{await navigator.share({title:'Save One Song',text,url});return}catch(e){if(e.name==='AbortError')return}}
+    m.querySelector('[data-shdl]').click();toast('IMAGE DOWNLOADED — LINK IS BELOW')};
 }
 let catTab='genre';
 function catsHTML(){
@@ -483,7 +539,7 @@ function catsHTML(){
     <p class="lead">${({genre:'EACH ROUND IS ONE YEAR OF THE GENRE: THE BEST TRACK FROM ITS 10 TOP-RATED ALBUMS',scene:'EACH ROUND IS ONE YEAR OF THE SCENE: THE BEST TRACK FROM ITS 10 TOP-RATED ALBUMS',artist:'EACH ROUND IS ONE OF THE ARTIST\'S ALBUMS: SAVE YOUR FAVOURITE TRACK',album:'EACH ROUND IS ONE ACCLAIMED ALBUM: SAVE YOUR FAVOURITE TRACK'})[catTab]}</p>
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const id='c:'+catTab+':'+c.id;const n=Object.keys(store.get('picks-'+id,{})).length;return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${c.rounds.length} ROUNDS</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=41')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=42')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
@@ -516,7 +572,7 @@ function picksHTML(){
   const ys=YEARS.filter(y=>picks[y]!=null);
   return `${chrome()}<div class="page"><h1 class="gold-title">YOUR PICKS</h1><p class="lead">${ys.length} OF ${YEARS.length} ${UNIT()}S SAVED${ys.length?' · CLICK A COVER TO PLAY':''}</p>
     ${ys.length?`<div class="picks">${ys.map(y=>{const s=SONGS[y+'-'+picks[y]];return `<div class="pk">${coverEl(s)}<div class="y">${shortLabel(y)}</div><div class="t">${esc(s.t)}</div><div class="a">${esc(s.a)}</div></div>`}).join('')}</div>`:`<div class="mbtns" style="margin:0 auto"><button class="mbtn primary" data-go="new">START SAVING</button></div>`}</div>
-    <div class="corner">${ys.length?`<button class="cbtn" data-copy>COPY LIST</button><button class="cbtn" data-clear>CLEAR ALL</button>`:''}</div>`;
+    <div class="corner">${ys.length?`<button class="cbtn hot" data-share>SHARE</button><button class="cbtn" data-copy>COPY LIST</button><button class="cbtn" data-clear>CLEAR ALL</button>`:''}</div>`;
 }
 /* ---------- deathmatch ---------- */
 let dm=null;
@@ -596,6 +652,7 @@ function bind(){
   const tip=document.querySelector('[data-tip]');if(tip)tip.onclick=e=>{e.stopPropagation();seenTip=true;store.set('tip',true);tip.remove();if(!fast)advance()};
   const cp=document.querySelector('[data-copy]');if(cp)cp.onclick=async()=>{const lines=['SAVE ONE SONG — MY PICKS'+(KIND()==='month'?' — THE '+GAME.toUpperCase():KIND()==='cat'?' — '+CATNAME.toUpperCase():'')];YEARS.forEach(y=>{if(picks[y]!=null){const s=SONGS[y+'-'+picks[y]];lines.push(`${shortLabel(y)}  ${s.t} — ${s.a}`)}});try{await navigator.clipboard.writeText(lines.join('\n'));toast('COPIED')}catch(e){toast('COPY BLOCKED BY BROWSER')}};
   const cl=document.querySelector('[data-clear]');if(cl)cl.onclick=()=>{if(cl.dataset.armed){picks={};store.set(gk('picks'),picks);render();toast('PICKS CLEARED')}else{cl.dataset.armed=1;cl.textContent='CLICK AGAIN TO CLEAR';setTimeout(()=>{if(cl.isConnected){delete cl.dataset.armed;cl.textContent='CLEAR ALL'}},2500)}};
+  const sh=document.querySelector('[data-share]');if(sh)sh.onclick=e=>{e.stopPropagation();openShare()};
   const dmc=document.querySelector('[data-dmclear]');if(dmc)dmc.onclick=()=>{store.set(gk('champs'),[]);render();toast('DEATHMATCH HISTORY CLEARED')};
   document.querySelectorAll('[data-dmstart]').forEach(b=>b.onclick=()=>{if(YEARS.filter(y=>picks[y]!=null).length<2)return;dmStart();render()});
   document.querySelectorAll('[data-dmpick]').forEach(b=>b.onclick=e=>{e.stopPropagation();stopAudio();dm.next.push(dm.round[dm.idx+ +b.dataset.dmpick]);dm.idx+=2;dmFixBye();render()});
@@ -609,6 +666,7 @@ document.addEventListener('pointerup',e=>{clearTimeout(holdT);if(view!=='game'||
 document.addEventListener('keydown',e=>{
   if(e.code==='Space'&&e.target.tagName!=='INPUT'){e.preventDefault();togglePause()}
   if(view==='game'&&phase==='results'&&(e.key==='Enter'||e.key==='ArrowRight'))afterResults();
+  if(e.key==='Escape'&&$('#sharemodal')){$('#sharemodal').remove();return}
   if(e.key==='Escape'&&!$('#keymodal').classList.contains('on')){stopAudio();view='menu';render()}
 });
 $('#keysave').onclick=()=>{YTKEY=$('#keyin').value.trim();store.set('ytkey',YTKEY);quotaOut=false;$('#keymodal').classList.remove('on');toast(YTKEY?'KEY SAVED':'KEY CLEARED');if(view==='menu')render()};
@@ -620,7 +678,11 @@ $('#dockx').onclick=()=>{
   if(mode==='yt'&&playing){setLoading(playing,false);playing=null;markPlaying()}
   $('#dock').classList.remove('on');document.body.classList.remove('docked')};
 yi=Math.min(store.get('yi',0),YEARS.length-1);
-(async()=>{const g=store.get('game','year');if(g!=='year'){await setGame(g)}render()})();
+(async()=>{const q=new URLSearchParams(location.search);
+  if(q.get('p')!=null&&q.get('g')){const g=q.get('g');if(g==='year'||await setGame(g)){if(g==='year'&&GAME!=='year')await setGame('year');
+    SHARED={};(q.get('p')||'').replace(/-([0-9a-z])/g,(m,c)=>'_'.repeat(B36.indexOf(c))).split('').forEach((ch,i)=>{const n=B36.indexOf(ch);if(n>=0&&YEARS[i]!=null)SHARED[YEARS[i]]=n});view='shared';render();
+    history.replaceState(null,'',location.pathname);return}}
+  const g=store.get('game','year');if(g!=='year'){await setGame(g)}render()})();
 </script>
 </body>
 </html>
