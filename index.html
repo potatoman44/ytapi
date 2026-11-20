@@ -270,7 +270,9 @@ async function playClip(id,url){
   await player.play();
 }
 async function play(id){
-  const s=SONGS[id];stopAudio(false);playing=id;markPlaying();
+  const s=SONGS[id];
+  const yp=YT_PREVIEW[id];if(yp&&(yp.v||YTKEY))return ytPlay(id,false,yp.from);
+  stopAudio(false);playing=id;markPlaying();
   if(s.dz||HINTS[id]){
     // if the link is already known, start in the same tick as the tap (phones require this)
     let url=URLS[id];if(!url){setLoading(id,true);url=await urlFor(id)}
@@ -368,16 +370,20 @@ async function pump(){
   qBusy=false;
 }
 // full song on YouTube (from the start); without a key, open YouTube search
-async function ytPlay(id,full){
-  const s=SONGS[id];
-  if(!YTKEY){if(full){window.open(YTSEARCH(s),'_blank');return}
+// songs whose Deezer clip can't reach the good part: preview them on YouTube from a set time instead
+// (v: a fixed YouTube video id, so no key or search is needed; null = find it with the YouTube key)
+const YT_PREVIEW={'1969-2':{from:29,v:null}};
+async function ytPlay(id,full,from){
+  const s=SONGS[id];const pin=YT_PREVIEW[id]&&YT_PREVIEW[id].v;
+  if(pin)VID[id]=[pin];
+  if(!YTKEY&&!pin){if(full){window.open(YTSEARCH(s),'_blank');return}
     playing=null;markPlaying();toast('NO CLIP FOR THIS ONE — ADD A YOUTUBE KEY OR USE FULL SONG');
     if(view==='game'&&phase==='reveal'&&!fast){clearTimeout(revealTimer);revealTimer=setTimeout(advance,1200)}return}
   stopAudio(false);playing=id;mode='yt';s._try=0;markPlaying();setLoading(id,true);
-  const r=await lookup(s);
+  const r=pin?[pin]:await lookup(s);
   if(playing!==id){return}
   if(!r||!r.length){setLoading(id,false);playing=null;markPlaying();if(r)toast('NO VIDEO FOUND — OPENING YOUTUBE SEARCH');if(r)window.open(YTSEARCH(s),'_blank');return}
-  startVid(id,full?0:30);
+  startVid(id,from!=null?from:(full?0:30));
 }
 const ICON={play:'<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>',pause:'<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>',spk:'<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',spkoff:'<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>'};
 function openKey(){const m=$('#keymodal');m.classList.add('on');$('#keyin').value=YTKEY;setTimeout(()=>$('#keyin').focus(),50)}
@@ -410,7 +416,7 @@ function menuHTML(){
       <button class="mbtn" data-go="rank">RANKINGS</button>
       <button class="mbtn" data-go="picks">YOUR PICKS<small>${n} / ${YEARS.length} SAVED</small></button>
       <button class="mbtn" data-key style="font-size:20px">YOUTUBE KEY<small>${YTKEY?'SET · FULL SONGS PLAY HERE':'OPTIONAL · FOR FULL SONGS'}</small></button>
-    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 2.6 · 20 NOV</div></div>`;
+    </div><div style="margin-top:22px;font-size:13px;color:#888">VERSION 2.7 · 20 NOV</div></div>`;
 }
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
