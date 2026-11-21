@@ -169,9 +169,58 @@ body.docked .stage,body.docked .page{padding-bottom:330px}
 @media(max-width:600px){.skipbar{bottom:62px}.skipbar button{font-size:15px;padding:8px 18px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
+
+/* ---- black / grey / gold / red theme (default) ---- */
+body.th-gold{--blue:#000;--blue2:#161616;--blue3:#262626;--white:#f3f1ec;--soft:#a3a3a3;--faint:#5c5c5c;--sun:#d8aa3c;--rose:#c8202f;--ink:#000;--btn:#d8aa3c;--btnink:#000}
+body.th-blue{--btn:var(--white);--btnink:var(--blue)}
+body.th-gold .pills{border-color:var(--faint)}
+body.th-gold .pills span.on,body.th-gold .ygrid button.done,body.th-gold .skipbar button:first-child{background:var(--sun);color:#000;border-color:var(--sun)}
+body.th-gold .mbtn{border-color:#3a3a3a}
+body.th-gold .mbtn:hover,body.th-gold .cbtn:hover,body.th-gold .prev:hover,body.th-gold .close:hover,body.th-gold .save:hover{background:var(--white);color:#000;border-color:var(--white)}
+body.th-gold .mbtn.primary{background:var(--sun);color:#000;border-color:var(--sun)}
+body.th-gold .mbtn.primary:hover{background:var(--white);border-color:var(--white)}
+body.th-gold .save,body.th-gold .prev,body.th-gold .cbtn,body.th-gold .close,body.th-gold .mute button,body.th-gold .skipbar button+button{border-color:#4a4a4a}
+body.th-gold .pp{background:var(--white)}body.th-gold .pp svg{fill:#000;stroke:#000}
+body.th-gold .cv.playing .pp{background:var(--sun)}
+body.th-gold .res .cv.picked .pct{background:var(--rose);color:#fff}
+body.th-gold .res .cv.picked img{outline-color:var(--rose)}
+body.th-gold .pk .y{color:var(--sun)}
+body.th-gold .mbox{background:#121212;border:1px solid #2c2c2c}
+body.th-gold .modal{background:rgba(0,0,0,.72)}
+body.th-gold .gold-title{color:var(--white)}
+body.th-gold .menu h1{color:var(--white)}
+body.th-gold .cbtn.hot{background:var(--sun);border-color:var(--sun)}
+body.th-gold .toast{background:var(--sun)}
+/* ---- music bits ---- */
+/* a record leaning against the wall on the menu */
+.rec{position:fixed;z-index:0;right:-230px;top:50%;width:560px;height:560px;margin-top:-280px;border-radius:50%;pointer-events:none;
+ background:radial-gradient(circle,#000 0 1.6%,var(--rose) 1.9% 30%,#0b0b0b 30.4% 31.4%,transparent 31.8%),
+  conic-gradient(from 20deg,rgba(255,255,255,.07),rgba(255,255,255,0) 14%,rgba(255,255,255,.05) 48%,rgba(255,255,255,0) 64%,rgba(255,255,255,.07)),
+  repeating-radial-gradient(circle,#141414 0 2px,#090909 2px 4px);
+ box-shadow:0 0 0 1px #2a2a2a;animation:spin 14s linear infinite}
+.rec::after{content:"SIDE A";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) translateY(-60px);font-size:13px;font-weight:700;font-stretch:115%;color:#000;letter-spacing:.02em;white-space:nowrap}
+body.th-blue .rec{background:radial-gradient(circle,var(--blue) 0 1.6%,var(--sun) 1.9% 30%,#111 30.4% 31.4%,transparent 31.8%),repeating-radial-gradient(circle,#161616 0 2px,#0b0b0b 2px 4px)}
+@media(max-width:900px){.rec{width:360px;height:360px;margin-top:-180px;right:-230px;opacity:.6}.rec::after{display:none}}
+.menu{position:relative;z-index:1}
+.mbtn{background:var(--blue)}.mbtn.primary{background:var(--btn)}
+/* level meter on the cover that's playing */
+.eq{position:absolute;z-index:2;left:9px;top:9px;display:none;align-items:flex-end;gap:3px;height:22px;padding:4px 5px;border-radius:4px;background:rgba(0,0,0,.7)}
+.eq i{display:block;width:4px;height:100%;background:var(--sun);transform-origin:bottom;animation:eqb .9s ease-in-out infinite}
+.eq i:nth-child(2){animation-duration:.7s;animation-delay:-.3s}.eq i:nth-child(3){animation-duration:1.1s;animation-delay:-.5s}.eq i:nth-child(4){animation-duration:.8s;animation-delay:-.1s}
+@keyframes eqb{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+.cv.playing .eq{display:flex}
+.cv.playing.paused .eq i{animation-play-state:paused}
+/* how far through the preview you are */
+.prog{position:absolute;z-index:2;left:0;bottom:0;height:4px;width:0;background:var(--sun);display:none}
+.cv.playing .prog{display:block}
+/* turntable tonearm-style year marker: a thin groove line under the heading */
+.top::after{content:"";width:120px;height:3px;margin-top:8px;border-radius:2px;background:repeating-linear-gradient(90deg,var(--sun) 0 12px,transparent 12px 18px);opacity:.9}
+.top:has(.sub)::after{display:none}
+@media(prefers-reduced-motion:reduce){.rec,.eq i{animation:none!important}}
 </style>
 </head>
-<body>
+<body class="th-gold">
+<div class="rec" id="rec" hidden></div>
 <div class="app" id="app"></div>
 <div class="toast" id="toast"></div>
 <div class="dock" id="dock"><div class="dockbar"><span id="dockt"></span><button id="dockx" aria-label="Stop">✕</button></div><div id="ytp"></div></div>
@@ -223,12 +272,13 @@ const gk=k=>GAME==='year'?k:k+'-'+GAME;
  store.set(gk('champs'),store.get(gk('champs'),[]).map(mv).filter(Boolean));
  ['dzfound','vids2'].forEach(k=>{const o=store.get(k,{}),r={};Object.keys(o).forEach(id=>{const n=mv(id);if(n)r[n]=o[id]});store.set(k,r)});
  store.set('dv',DV)})();
+document.body.className='th-'+store.get('theme','gold');
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=52');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=53');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
-  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=52')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
+  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=53')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('That category no longer exists');return false}
     const raw={};catRounds(t,c,multi).forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk+(multi?'~m':'');LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -311,6 +361,7 @@ function preloadYear(y){if(!RAW[y])return;RAW[y].forEach((_,i)=>urlFor(y+'-'+i))
 player.onended=()=>{if(mode==='clip'&&playing===current){playing=null;markPlaying()}};
 player.onplaying=()=>{if(mode==='clip'&&playing)setLoading(playing,false);markPlaying()};
 player.onpause=()=>markPlaying();
+player.ontimeupdate=()=>{if(mode!=='clip'||playing!==current)return;const el=document.querySelector(`[data-cv="${current}"] .prog`);if(el&&player.duration)el.style.width=(player.currentTime/player.duration*100).toFixed(1)+'%'};
 // clips that open with silence or an unrepresentative intro start a few seconds in
 const CLIP_START={'1963-1':6};
 function seekStart(id){const t=CLIP_START[id]||0;if(!t)return;
@@ -356,7 +407,7 @@ function togglePause(){if(!playing)return;
   else if(ytReady){if(ytPaused)ytp.playVideo();else ytp.pauseVideo()}}
 function applyMute(){player.muted=muted;if(ytReady)muted?ytp.mute():ytp.unMute()}
 function setLoading(id,on){const el=document.querySelector(`[data-cv="${id}"] .pp`);if(el){el.classList.toggle('ld',on);if(!on)markPlaying()}}
-function markPlaying(){const p=isPaused();document.querySelectorAll('[data-cv]').forEach(el=>{const on=el.dataset.cv===playing;el.classList.toggle('playing',on);const pp=el.querySelector('.pp');if(pp&&!pp.classList.contains('ld'))pp.innerHTML=on&&!p?ICON.pause:ICON.play})}
+function markPlaying(){const p=isPaused();document.querySelectorAll('[data-cv]').forEach(el=>{const on=el.dataset.cv===playing;el.classList.toggle('playing',on);el.classList.toggle('paused',on&&p);const pp=el.querySelector('.pp');if(pp&&!pp.classList.contains('ld'))pp.innerHTML=on&&!p?ICON.pause:ICON.play})}
 
 /* YouTube (full songs) */
 let ytp=null,ytReady=false,ytWant=null,ytPaused=true,quotaOut=false,kick=null;
@@ -441,11 +492,12 @@ async function ytPlay(id,full,from){
 const ICON={play:'<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>',pause:'<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>',spk:'<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',spkoff:'<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>'};
 function openKey(){const m=$('#keymodal');m.classList.add('on');$('#keyin').value=YTKEY;setTimeout(()=>$('#keyin').focus(),50)}
 /* ---------- rendering ---------- */
-function coverEl(s,extra=''){return `<div class="cv" data-cv="${s.id}">${s?`<img loading="lazy" referrerpolicy="no-referrer" src="${COVER(s)}" alt="" onerror="this.onerror=null;fallbackArt(this,'${s.id}')">`:''}<button class="yt" data-full="${s.id}" title="Play the full song on YouTube">Full song</button><button class="pp" data-play="${s.id}" aria-label="Play preview">${playing===s.id&&!isPaused()?ICON.pause:ICON.play}</button>${extra}</div>`}
+function coverEl(s,extra=''){return `<div class="cv" data-cv="${s.id}">${s?`<img loading="lazy" referrerpolicy="no-referrer" src="${COVER(s)}" alt="" onerror="this.onerror=null;fallbackArt(this,'${s.id}')">`:''}<button class="yt" data-full="${s.id}" title="Play the full song on YouTube">Full song</button><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="prog"></span><button class="pp" data-play="${s.id}" aria-label="Play preview">${playing===s.id&&!isPaused()?ICON.pause:ICON.play}</button>${extra}</div>`}
 window.fallbackArt=(img)=>{img.replaceWith(Object.assign(document.createElement('div'),{className:'ph',textContent:'♪'}))};
 function render(){
   clearTimeout(revealTimer);
   const app=$('#app');
+  $('#rec').hidden=view!=='menu';
   if(view==='menu')app.innerHTML=menuHTML();
   else if(view==='game')app.innerHTML=gameHTML();
   else if(view==='years')app.innerHTML=yearsHTML();
@@ -473,7 +525,7 @@ function menuHTML(){
       ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">Most-rated songs</button>`:''}
       <button class="mbtn" data-go="picks">Your picks<small>${n} of ${YEARS.length}</small></button>
       <button class="mbtn" data-key>YouTube key<small>${YTKEY?'Added':'Optional'}</small></button>
-    </div><p class="ver">Version 5.2, 21 Nov</p></div>`;
+    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.3, 21 Nov</p></div>`;
 }
 /* ---------- sharing ---------- */
 const B36='0123456789abcdefghijklmnopqrstuvwxyz';
@@ -495,17 +547,17 @@ async function shareImage(){
   const c=document.createElement('canvas');c.width=W;c.height=head+rows*(ch+gap)+70;const x=c.getContext('2d');
   try{await document.fonts.load('850 40px Archivo');await document.fonts.load('650 20px Archivo')}catch(e){}
   const F=(w,px,wide)=>{x.font=w+' '+px+'px Archivo,system-ui,sans-serif';try{x.fontStretch=wide?'expanded':'normal'}catch(e){}};
-  x.fillStyle='#2b3ec2';x.fillRect(0,0,W,c.height);
-  x.textAlign='left';x.fillStyle='#ffffff';F(850,64,1);x.fillText('Save one song',pad,96);
-  x.fillStyle='rgba(255,255,255,.72)';F(500,24);x.fillText(modeTitle().slice(0,70),pad,136);
+  const CS=getComputedStyle(document.body),V=n=>CS.getPropertyValue(n).trim();x.fillStyle=V('--blue')||'#000';x.fillRect(0,0,W,c.height);
+  x.textAlign='left';x.fillStyle=V('--white')||'#fff';F(850,64,1);x.fillText('Save one song',pad,96);
+  x.fillStyle=V('--soft')||'#aaa';F(500,24);x.fillText(modeTitle().slice(0,70),pad,136);
   const imgs=await Promise.all(items.map(([,s])=>loadImg(COVER(s))));
   const fit=(t,w)=>{if(x.measureText(t).width<=w)return t;while(t.length>1&&x.measureText(t+'…').width>w)t=t.slice(0,-1);return t+'…'};
   items.forEach(([y,s],n)=>{const cx=pad+(n%cols)*(cw+gap),cy=head+Math.floor(n/cols)*(ch+gap);
-    if(imgs[n])x.drawImage(imgs[n],cx,cy,cw,cw);else{x.fillStyle='#1a287f';x.fillRect(cx,cy,cw,cw)}
+    if(imgs[n])x.drawImage(imgs[n],cx,cy,cw,cw);else{x.fillStyle=V('--blue3')||'#222';x.fillRect(cx,cy,cw,cw)}
     x.textAlign='left';
-    x.fillStyle='#ffe24a';F(700,Math.round(fs*0.78));x.fillText(fit(String(shortLabel(y)),cw),cx,cy+cw+fs*1.05);
-    x.fillStyle='#ffffff';F(650,fs);x.fillText(fit(s.t,cw),cx,cy+cw+fs*2.15);
-    x.fillStyle='rgba(255,255,255,.72)';F(500,Math.round(fs*0.82));x.fillText(fit(s.a.replace(/\s*\[.*?\]/g,''),cw),cx,cy+cw+fs*3.1)});
+    x.fillStyle=V('--sun')||'#d8aa3c';F(700,Math.round(fs*0.78));x.fillText(fit(String(shortLabel(y)),cw),cx,cy+cw+fs*1.05);
+    x.fillStyle=V('--white')||'#fff';F(650,fs);x.fillText(fit(s.t,cw),cx,cy+cw+fs*2.15);
+    x.fillStyle=V('--soft')||'#aaa';F(500,Math.round(fs*0.82));x.fillText(fit(s.a.replace(/\s*\[.*?\]/g,''),cw),cx,cy+cw+fs*3.1)});
   x.fillStyle='rgba(255,255,255,.5)';F(500,20);x.textAlign='left';x.fillText(location.host,pad,c.height-28);
   return c;
 }
@@ -561,7 +613,7 @@ function catsHTML(){
     ${isAlbumRounds(catTab)?`<div class="pills decs" style="margin:0 auto 22px;width:max-content"><span class="${catMulti()?'':'on'}" data-catmulti="0">One song per album</span><span class="${catMulti()?'on':''}" data-catmulti="1">Several songs per album</span></div>`:''}
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const m=isAlbumRounds(catTab)&&catMulti();const id='c:'+catTab+':'+c.id+(m?':multi':'');const n=Object.keys(store.get('picks-'+id,{})).length;const r=catRounds(catTab,c,m).length;if(!r)return '';return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${r} rounds</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=52')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=53')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
@@ -661,6 +713,7 @@ function bind(){
   document.querySelectorAll('[data-year]').forEach(b=>b.onclick=()=>enterYear(YEARS.findIndex(y=>String(y)===b.dataset.year)));
   document.querySelectorAll('[data-game]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const g=b.dataset.game;if(g===GAME){if(view==='cats'){view='menu';render()}return}if(/^\d{4}s$/.test(g))store.set('lastdec',g);b.textContent='Loading…';if(await setGame(g)){view='menu';render()}else render()});
   document.querySelectorAll('[data-gocats]').forEach(b=>b.onclick=e=>{e.stopPropagation();openCats(GAME.startsWith('c:')?GAME.split(':')[1]:null)});
+  document.querySelectorAll('[data-theme]').forEach(b=>b.onclick=e=>{e.stopPropagation();store.set('theme',b.dataset.theme);document.body.className='th-'+b.dataset.theme;render()});
   document.querySelectorAll('[data-catmulti]').forEach(b=>b.onclick=e=>{e.stopPropagation();store.set('catmulti',b.dataset.catmulti==='1');render()});
   document.querySelectorAll('[data-cattab]').forEach(b=>b.onclick=e=>{e.stopPropagation();openCats(b.dataset.cattab)});
   document.querySelectorAll('[data-play]').forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.play;if(view==='game'&&phase==='reveal'){if(TOUCH)return;revealAll(false)}
