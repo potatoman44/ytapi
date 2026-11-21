@@ -224,6 +224,7 @@ body.th-blue .rec{background:radial-gradient(circle,var(--blue) 0 1.6%,var(--sun
 .crow .cbtn{padding:6px 12px;font-size:14px}
 .cform{display:flex;flex-direction:column;gap:14px;text-align:left;border-top:1.5px solid var(--faint);padding-top:26px}
 .cform h2{font-size:28px;font-weight:850;font-stretch:125%;letter-spacing:-.02em}
+.cform .hint{font-weight:500;font-size:13px;color:var(--faint)}
 .cform label{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600;color:var(--soft)}
 .cform input,.cform select,.cform textarea{font:inherit;font-size:16px;color:var(--white);background:var(--blue2);border:1.5px solid var(--faint);border-radius:8px;padding:10px 12px}
 .cform textarea{resize:vertical;line-height:1.5}
@@ -293,14 +294,14 @@ document.body.className='th-'+store.get('theme','gold');
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=511b');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=512');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
   if(g.startsWith('c:custom:')){const id=g.slice(9);const cfg=customs().find(c=>c.id===id);if(!cfg){toast('That custom game no longer exists');return false}
     const built=await ensureBuilt(cfg);if(!built)return false;
     const raw={};built.rounds.forEach(([yr,songs])=>{const k='C~custom~'+id+'~'+yr;LABELS[k]=yr;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=cfg.name;RAW=raw;YEARS=Object.keys(raw);
     picks=store.get(gk('picks'),{});yi=Math.min(store.get(gk('yi'),0),Math.max(0,YEARS.length-1));dm=null;return true}
-  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=511b')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
+  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=512')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('That category no longer exists');return false}
     const raw={};catRounds(t,c,multi).forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk+(multi?'~m':'');LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -551,13 +552,13 @@ function menuHTML(){
       ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">Most-rated songs</button>`:''}
       <button class="mbtn" data-go="picks">Your picks<small>${n} of ${YEARS.length}</small></button>
       <button class="mbtn" data-key>YouTube key<small>${YTKEY?'Added':'Optional'}</small></button>
-    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.11, 21 Nov</p></div>`;
+    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.12, 21 Nov</p></div>`;
 }
 /* ---------- sharing ---------- */
 const B36='0123456789abcdefghijklmnopqrstuvwxyz';
 const modeTitle=()=>KIND()==='year'?'By year':KIND()==='month'?'Month by month, the '+GAME:CATNAME+(GAME.endsWith(':multi')?', several per album':'');
 function shareURL(){const code=YEARS.map(y=>picks[y]!=null?B36[picks[y]]:'_').join('').replace(/_+$/,'').replace(/_{2,35}/g,m=>'-'+B36[m.length]);
-  let extra='';if(GAME.startsWith('c:custom:')){const c=customs().find(c=>'c:custom:'+c.id===GAME);if(c)extra='&c='+encodeURIComponent(JSON.stringify({n:c.name,f:c.from,t:c.to,a:c.artists.map(a=>[a.id,a.name])}))}
+  let extra='';if(GAME.startsWith('c:custom:')){const c=customs().find(c=>'c:custom:'+c.id===GAME);if(c)extra='&c='+encodeURIComponent(JSON.stringify({n:c.name,f:c.from,t:c.to,a:c.artists.map(a=>[a.id,a.name]),b:(c.albums||[]).map(a=>[a.id,a.title,a.artist])}))}
   return location.origin+location.pathname+'?g='+encodeURIComponent(GAME)+'&p='+code+extra}
 let SHARED=null;
 function sharedHTML(){
@@ -634,7 +635,7 @@ const catMulti=()=>store.get('catmulti',false);
 /* ---------- custom games: your own artists and years, built from Deezer ---------- */
 const customs=()=>store.get('customs',[]);
 const saveCustoms=l=>store.set('customs',l);
-const csig=c=>JSON.stringify([c.from,c.to,c.artists.map(a=>a.id)]);
+const csig=c=>JSON.stringify([c.from,c.to,c.artists.map(a=>a.id),(c.albums||[]).map(a=>a.id)]);
 let editing=null,building=null;
 const NZ=x=>(x||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\s*[\(\[].*?[\)\]]/g,'').replace(/\s+-\s+.*$/,'').replace(/^the /,'').replace(/[^a-z0-9]+/g,'');
 const CBAD=/\blive\b|remix|demo|instrumental|acoustic|karaoke|commentary|interview|\bmono\b|edit\)|version\)|session|tape\b|\btake \d|\d{4} mix|mix\)|outtake|rehearsal|alternate|rough/i;
@@ -644,7 +645,7 @@ let AY=null;
 async function mbYear(artist,title){try{await new Promise(r=>setTimeout(r,1100));const q='releasegroup:"'+title.replace(/"/g,'')+'" AND artist:"'+artist.replace(/"/g,'')+'"';const j=await (await fetch('https://musicbrainz.org/ws/2/release-group/?fmt=json&limit=3&query='+encodeURIComponent(q))).json();const g=(j['release-groups']||[]).find(x=>x.score>=90&&x['first-release-date']);return g?+g['first-release-date'].slice(0,4):0}catch(e){return 0}}
 async function buildCustom(cfg,prog){
   const songs=[];let done=0;const albumYear={};
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=511b')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=512')).json()}catch(e){AY={}}}
   for(const a of cfg.artists){
     const cached=store.get('cart-'+a.id,null);if(cached&&cached.v===4){songs.push(...cached.s);prog&&prog(++done,cfg.artists.length,a.name);continue}
     let top=[];try{top=((await jsonp('https://api.deezer.com/artist/'+a.id+'/top?limit=100')).data)||[]}catch(e){}
@@ -669,7 +670,17 @@ async function buildCustom(cfg,prog){
         await new Promise(r=>setTimeout(r,400))}
     }catch(e){}}
     const mine=Object.values(best).map(s=>[...s,a.id]);songs.push(...mine);if(top.length)store.set('cart-'+a.id,{v:4,s:mine});
-    prog&&prog(++done,cfg.artists.length,a.name)}
+    prog&&prog(++done,cfg.artists.length+(cfg.albums||[]).length,a.name)}
+  // single albums: every track from that album, in the album's original year
+  const have=new Set(songs.map(x=>NZ(x[1])+'|'+NZ(x[0])));
+  for(const ab of (cfg.albums||[])){try{
+    const al=await jsonp('https://api.deezer.com/album/'+ab.id);if(al&&!al.error){
+      const clean=al.title.replace(/\s*[\(\[][^\)\]]*(remaster|deluxe|anniversary|expanded|edition|mono|stereo|mix|version)[^\)\]]*[\)\]]/ig,'').trim();
+      const art=(al.artist&&al.artist.name)||ab.artist;let y=+(al.release_date||'0').slice(0,4);const ay=AY[NZ(art)+'|'+NZ(clean)];if(ay)y=ay;else if(REISSUE.test(al.title)){const m=await mbYear(art,clean);if(m)y=m}
+      const tr=((await jsonp('https://api.deezer.com/album/'+ab.id+'/tracks?limit=100')).data)||[];const seen=new Set();
+      tr.forEach(t=>{if(!t.preview||CBAD.test(t.title))return;const k=NZ(t.title);if(seen.has(k)||have.has(NZ(art)+'|'+k))return;seen.add(k);
+        songs.push([t.title.replace(/\s+-\s+(\d{4}\s+)?Remaster.*$/i,'').replace(/\s*\((\d{4}\s+)?Remaster[^)]*\)/i,'').replace(/\s*\(Stereo\)$/i,''),art,clean,al.cover_big||al.cover_medium,null,t.rank||0,t.id,y,'al'+ab.id])})}
+  }catch(e){}prog&&prog(++done,cfg.artists.length+(cfg.albums||[]).length,ab.title)}
   const rounds=[];
   for(let y=cfg.from;y<=cfg.to;y++){
     const byA={};songs.filter(s=>s[7]===y).forEach(s=>(byA[s[8]]=byA[s[8]]||[]).push(s));
@@ -680,24 +691,26 @@ async function buildCustom(cfg,prog){
 }
 async function ensureBuilt(cfg){
   const k='custom-'+cfg.id;const b=store.get(k,null);if(b&&b.sig===csig(cfg))return b;
-  building={name:cfg.name,n:0,of:cfg.artists.length,cur:''};view='custom';render();
+  building={name:cfg.name,n:0,of:cfg.artists.length+(cfg.albums||[]).length,cur:''};view='custom';render();
   try{const r=await buildCustom(cfg,(n,of,cur)=>{building={name:cfg.name,n,of,cur};if(view==='custom')render()});
     building=null;if(!r.rounds.length){toast('No years in that range had enough songs from these artists');view='custom';render();return null}
     store.set(k,r);return r}catch(e){building=null;toast('Couldn’t reach Deezer. Check your connection and try again.');view='custom';render();return null}
 }
 function customHTML(){
-  if(building)return `${chrome()}<div class="page"><h1 class="gold-title">Building ${esc(building.name)}</h1><p class="lead">Looking up ${building.n} of ${building.of} artists on Deezer${building.cur?' (just did '+esc(building.cur)+')':''}. This takes a few seconds per artist and only happens once.</p><div class="cbar"><i style="width:${Math.round(building.n/Math.max(1,building.of)*100)}%"></i></div></div>`;
+  if(building)return `${chrome()}<div class="page"><h1 class="gold-title">Building ${esc(building.name)}</h1><p class="lead">Looking up ${building.n} of ${building.of} artists and albums on Deezer${building.cur?' (just did '+esc(building.cur)+')':''}. This takes a few seconds per artist and only happens once.</p><div class="cbar"><i style="width:${Math.round(building.n/Math.max(1,building.of)*100)}%"></i></div></div>`;
   const list=customs();const yrs=[];for(let y=2026;y>=1950;y--)yrs.push(y);
   const e=editing||{name:'',from:1960,to:2026,artists:[],text:''};
   const opt=v=>yrs.map(y=>`<option ${y===v?'selected':''}>${y}</option>`).join('');
-  return `${chrome()}<div class="page custom"><h1 class="gold-title">Custom games</h1><p class="lead">Pick your own artists and years. Each round is one year, with the most-played songs those artists released that year.</p>
-    ${list.length?`<div class="clist">${list.map(c=>`<div class="crow"><div><b>${esc(c.name)}</b><small>${c.from}–${c.to}, ${c.artists.length} artists</small></div><button class="cbtn" data-cplay="${c.id}">Play</button><button class="cbtn" data-cedit="${c.id}">Edit</button><button class="cbtn" data-cdel="${c.id}">Delete</button></div>`).join('')}</div>`:''}
+  return `${chrome()}<div class="page custom"><h1 class="gold-title">Custom games</h1><p class="lead">Pick your own artists, albums and years. Each round is one year, with the most-played songs released that year.</p>
+    ${list.length?`<div class="clist">${list.map(c=>`<div class="crow"><div><b>${esc(c.name)}</b><small>${c.from}–${c.to}, ${[c.artists.length?c.artists.length+' artist'+(c.artists.length>1?'s':''):'',(c.albums||[]).length?(c.albums.length)+' album'+(c.albums.length>1?'s':''):''].filter(Boolean).join(' and ')}</small></div><button class="cbtn" data-cplay="${c.id}">Play</button><button class="cbtn" data-cedit="${c.id}">Edit</button><button class="cbtn" data-cdel="${c.id}">Delete</button></div>`).join('')}</div>`:''}
     <div class="cform"><h2>${editing&&editing.id?'Edit '+esc(editing.name):'New custom game'}</h2>
       <label>Name<input id="cname" value="${esc(e.name)}" placeholder="My favourite bands" maxlength="40"></label>
       <div class="crange"><label>From<select id="cfrom">${opt(e.from)}</select></label><label>To<select id="cto">${opt(e.to)}</select></label></div>
       <label>Artists, one per line<textarea id="cart" rows="8" placeholder="Talking Heads&#10;Radiohead&#10;Swans">${esc(e.text||e.artists.map(a=>a.name).join('\n'))}</textarea></label>
+      <label>Albums, one per line<span class="hint">Add just one album instead of a whole discography. Put the artist after a dash if the name is common, like <i>Pet Sounds - The Beach Boys</i>.</span><textarea id="calb" rows="4" placeholder="Pet Sounds - The Beach Boys&#10;Loveless">${esc(e.atext||(e.albums||[]).map(a=>a.title+' - '+a.artist).join('\n'))}</textarea></label>
+      <div class="cfound">${(e.albums||[]).map(a=>`<span class="chip">${a.pic?`<img src="${a.pic}" alt="" style="border-radius:3px">`:''}${esc(a.title)} <small>${esc(a.artist)}</small>${a.guess?' <small>(closest match for “'+esc(a.q)+'”)</small>':''}</span>`).join('')}${(e.amissing||[]).map(m=>`<span class="chip bad">Album not found: ${esc(m)}</span>`).join('')}</div>
       <div class="cfound">${(e.artists||[]).map(a=>`<span class="chip">${a.pic?`<img src="${a.pic}" alt="">`:''}${esc(a.name)}${a.guess?' <small>(closest match for “'+esc(a.q)+'”)</small>':''}</span>`).join('')}${(e.missing||[]).map(m=>`<span class="chip bad">Not found: ${esc(m)}</span>`).join('')}</div>
-      <div class="cact"><button class="mbtn" data-cfind>Check artists</button><button class="mbtn primary" data-cbuild>Build and play</button>${editing?`<button class="mbtn" data-ccancel>Cancel</button>`:''}</div></div></div>`;
+      <div class="cact"><button class="mbtn" data-cfind>Check names</button><button class="mbtn primary" data-cbuild>Build and play</button>${editing?`<button class="mbtn" data-ccancel>Cancel</button>`:''}</div></div></div>`;
 }
 async function findArtists(text){
   const names=[...new Set(text.split(/\n/).map(x=>x.trim()).filter(Boolean))].slice(0,40);const out=[],missing=[];
@@ -705,15 +718,26 @@ async function findArtists(text){
     const exact=d.find(a=>NZ(a.name)===NZ(q));const pick=exact||d[0];if(pick)out.push({id:pick.id,name:pick.name,pic:pick.picture_medium,guess:!exact,q});else missing.push(q)}catch(e){missing.push(q)}}
   return {artists:out,missing};
 }
-function readForm(){return {name:($('#cname').value||'').trim(),from:+$('#cfrom').value,to:+$('#cto').value,text:$('#cart').value}}
+async function findAlbums(text){
+  const lines=[...new Set(text.split(/\n/).map(x=>x.trim()).filter(Boolean))].slice(0,40);const out=[],missing=[];
+  for(const line of lines){const m=line.split(/\s+[-–—]\s+|\s+by\s+/i);const title=m[0].trim(),artist=(m[1]||'').trim();
+    try{const q=artist?'artist:"'+artist+'" album:"'+title+'"':title;let r=await jsonp('https://api.deezer.com/search/album?limit=25&q='+encodeURIComponent(q));let d=(r.data||[]);
+      if(!d.length&&artist){r=await jsonp('https://api.deezer.com/search/album?limit=25&q='+encodeURIComponent(title+' '+artist));d=r.data||[]}
+      const t=NZ(title);const okT=d.filter(x=>NZ(x.title)===t);const okA=artist?okT.filter(x=>NZ(x.artist.name)===NZ(artist)):okT;
+      const pool=(okA.length?okA:okT.length?okT:d).filter(x=>x.record_type!=='compile');
+      const plain=pool.find(x=>!REISSUE.test(x.title)&&!/live/i.test(x.title))||pool[0];
+      if(plain)out.push({id:plain.id,title:plain.title,artist:plain.artist.name,pic:plain.cover_medium,guess:!okT.length,q:line});else missing.push(line)}catch(e){missing.push(line)}}
+  return {albums:out,missing};
+}
+function readForm(){return {name:($('#cname').value||'').trim(),from:+$('#cfrom').value,to:+$('#cto').value,text:$('#cart').value,atext:$('#calb').value}}
 function bindCustom(){
   if(view!=='custom'||building)return;
   const keep=()=>{const f=readForm();editing=Object.assign(editing||{},f)};
   document.querySelectorAll('[data-cplay]').forEach(b=>b.onclick=async e=>{e.stopPropagation();if(await setGame('c:custom:'+b.dataset.cplay)){view='menu';render()}});
-  document.querySelectorAll('[data-cedit]').forEach(b=>b.onclick=e=>{e.stopPropagation();const c=customs().find(c=>c.id===b.dataset.cedit);editing=JSON.parse(JSON.stringify(c));editing.text=c.artists.map(a=>a.name).join('\n');render()});
+  document.querySelectorAll('[data-cedit]').forEach(b=>b.onclick=e=>{e.stopPropagation();const c=customs().find(c=>c.id===b.dataset.cedit);editing=JSON.parse(JSON.stringify(c));editing.text=c.artists.map(a=>a.name).join('\n');editing.atext=(c.albums||[]).map(a=>a.title+' - '+a.artist).join('\n');render()});
   document.querySelectorAll('[data-cdel]').forEach(b=>b.onclick=e=>{e.stopPropagation();if(b.dataset.armed){const id=b.dataset.cdel;saveCustoms(customs().filter(c=>c.id!==id));try{localStorage.removeItem('sos2-custom-'+id)}catch(x){}if(GAME==='c:custom:'+id)setGame('year');toast('Custom game deleted');render()}else{b.dataset.armed=1;b.textContent='Click again to delete'}});
   const cc=$('[data-ccancel]');if(cc)cc.onclick=e=>{e.stopPropagation();editing=null;render()};
-  const fb=$('[data-cfind]');if(fb)fb.onclick=async e=>{e.stopPropagation();keep();fb.textContent='Checking…';const r=await findArtists(editing.text);Object.assign(editing,r,{text:r.artists.map(a=>a.name).join('\n')+(r.missing.length?'\n'+r.missing.join('\n'):'')});render()};
+  const fb=$('[data-cfind]');if(fb)fb.onclick=async e=>{e.stopPropagation();keep();fb.textContent='Checking…';const r=await findArtists(editing.text);const ra=await findAlbums(editing.atext||'');Object.assign(editing,r,{text:r.artists.map(a=>a.name).join('\n')+(r.missing.length?'\n'+r.missing.join('\n'):''),albums:ra.albums,amissing:ra.missing,atext:ra.albums.map(a=>a.title+' - '+a.artist).join('\n')+(ra.missing.length?'\n'+ra.missing.join('\n'):'')});render()};
   const bb=$('[data-cbuild]');if(bb)bb.onclick=async e=>{e.stopPropagation();keep();const f=editing;
     if(f.from>f.to){toast('The start year needs to be before the end year');return}
     bb.textContent='Checking artists…';
@@ -721,10 +745,15 @@ function bindCustom(){
     const known=(f.artists||[]).filter(a=>typed.some(t=>NZ(t)===NZ(a.name)||NZ(t)===NZ(a.q)));
     const todo=typed.filter(t=>!known.some(a=>NZ(t)===NZ(a.name)||NZ(t)===NZ(a.q)));
     const r=todo.length?await findArtists(todo.join('\n')):{artists:[],missing:[]};
-    const artists=[...known,...r.artists];if(!artists.length){toast('Add at least one artist');render();return}
-    const cfg={id:f.id||Date.now().toString(36),name:f.name||artists.slice(0,3).map(a=>a.name).join(', ')+(artists.length>3?' and more':''),from:f.from,to:f.to,artists:artists.map(a=>({id:a.id,name:a.name,pic:a.pic}))};
+    const artists=[...known,...r.artists];
+    const atyped=[...new Set((f.atext||'').split('\n').map(x=>x.trim()).filter(Boolean))];
+    const aknown=(f.albums||[]).filter(a=>atyped.some(t=>t===a.q||NZ(t)===NZ(a.title+' - '+a.artist)||NZ(t)===NZ(a.title)));
+    const atodo=atyped.filter(t=>!aknown.some(a=>t===a.q||NZ(t)===NZ(a.title+' - '+a.artist)||NZ(t)===NZ(a.title)));
+    const ra=atodo.length?await findAlbums(atodo.join('\n')):{albums:[],missing:[]};const albums=[...aknown,...ra.albums];
+    if(!artists.length&&!albums.length){toast('Add at least one artist or album');render();return}
+    const cfg={id:f.id||Date.now().toString(36),name:f.name||[...artists.map(a=>a.name),...albums.map(a=>a.title)].slice(0,3).join(', ')+(artists.length+albums.length>3?' and more':''),from:f.from,to:f.to,artists:artists.map(a=>({id:a.id,name:a.name,pic:a.pic})),albums:albums.map(a=>({id:a.id,title:a.title,artist:a.artist,pic:a.pic,q:a.q}))};
     saveCustoms([...customs().filter(c=>c.id!==cfg.id),cfg]);editing=null;
-    if(await setGame('c:custom:'+cfg.id)){view='menu';render();if(r.missing.length)toast('Couldn’t find: '+r.missing.join(', '),5000)}};
+    if(await setGame('c:custom:'+cfg.id)){view='menu';render();const miss=[...r.missing,...ra.missing];if(miss.length)toast('Couldn’t find: '+miss.join(', '),5000)}};
 }
 let catTab='genre';
 function catsHTML(){
@@ -735,7 +764,7 @@ function catsHTML(){
     ${isAlbumRounds(catTab)?`<div class="pills decs" style="margin:0 auto 22px;width:max-content"><span class="${catMulti()?'':'on'}" data-catmulti="0">One song per album</span><span class="${catMulti()?'on':''}" data-catmulti="1">Several songs per album</span></div>`:''}
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const m=isAlbumRounds(catTab)&&catMulti();const id='c:'+catTab+':'+c.id+(m?':multi':'');const n=Object.keys(store.get('picks-'+id,{})).length;const r=catRounds(catTab,c,m).length;if(!r)return '';return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${r} rounds</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=511b')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=512')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
@@ -880,7 +909,7 @@ $('#dockx').onclick=()=>{
   $('#dock').classList.remove('on');document.body.classList.remove('docked')};
 yi=Math.min(store.get('yi',0),YEARS.length-1);
 (async()=>{const q=new URLSearchParams(location.search);
-  if(q.get('c')){try{const j=JSON.parse(q.get('c'));const cfg={id:q.get('g').slice(9),name:j.n,from:+j.f,to:+j.t,artists:j.a.map(([id,name])=>({id,name}))};if(!customs().find(c=>c.id===cfg.id))saveCustoms([...customs(),cfg])}catch(e){}}
+  if(q.get('c')){try{const j=JSON.parse(q.get('c'));const cfg={id:q.get('g').slice(9),name:j.n,from:+j.f,to:+j.t,artists:j.a.map(([id,name])=>({id,name})),albums:(j.b||[]).map(([id,title,artist])=>({id,title,artist}))};if(!customs().find(c=>c.id===cfg.id))saveCustoms([...customs(),cfg])}catch(e){}}
   if(q.get('p')!=null&&q.get('g')){const g=q.get('g');if(g==='year'||await setGame(g)){if(g==='year'&&GAME!=='year')await setGame('year');
     SHARED={};(q.get('p')||'').replace(/-([0-9a-z])/g,(m,c)=>'_'.repeat(B36.indexOf(c))).split('').forEach((ch,i)=>{const n=B36.indexOf(ch);if(n>=0&&YEARS[i]!=null)SHARED[YEARS[i]]=n});view='shared';render();
     history.replaceState(null,'',location.pathname);return}}
