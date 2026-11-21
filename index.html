@@ -276,9 +276,9 @@ document.body.className='th-'+store.get('theme','gold');
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=55');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=56');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
-  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=55')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
+  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=56')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('That category no longer exists');return false}
     const raw={};catRounds(t,c,multi).forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk+(multi?'~m':'');LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -528,7 +528,7 @@ function menuHTML(){
       ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">Most-rated songs</button>`:''}
       <button class="mbtn" data-go="picks">Your picks<small>${n} of ${YEARS.length}</small></button>
       <button class="mbtn" data-key>YouTube key<small>${YTKEY?'Added':'Optional'}</small></button>
-    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.5, 21 Nov</p></div>`;
+    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.6, 21 Nov</p></div>`;
 }
 /* ---------- sharing ---------- */
 const B36='0123456789abcdefghijklmnopqrstuvwxyz';
@@ -616,7 +616,7 @@ function catsHTML(){
     ${isAlbumRounds(catTab)?`<div class="pills decs" style="margin:0 auto 22px;width:max-content"><span class="${catMulti()?'':'on'}" data-catmulti="0">One song per album</span><span class="${catMulti()?'on':''}" data-catmulti="1">Several songs per album</span></div>`:''}
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const m=isAlbumRounds(catTab)&&catMulti();const id='c:'+catTab+':'+c.id+(m?':multi':'');const n=Object.keys(store.get('picks-'+id,{})).length;const r=catRounds(catTab,c,m).length;if(!r)return '';return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${r} rounds</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=55')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=56')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
