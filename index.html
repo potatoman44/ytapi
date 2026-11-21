@@ -295,7 +295,7 @@ document.body.className='th-'+store.get('theme','gold');
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=524d');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=525');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
   if(g.startsWith('c:custom:')){const id=g.slice(9);const cfg=customs().find(c=>c.id===id);if(!cfg){toast('That custom game no longer exists');return false}
     const built=await ensureBuilt(cfg);if(!built)return false;
@@ -303,7 +303,7 @@ async function setGame(g){
     const raw={};built.rounds.forEach(([yr,songs])=>{const k='C~custom~'+id+'~'+yr;LABELS[k]=yr;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=cfg.name;RAW=raw;YEARS=Object.keys(raw);
     picks=store.get(gk('picks'),{});yi=Math.min(store.get(gk('yi'),0),Math.max(0,YEARS.length-1));dm=null;return true}
-  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=524d')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
+  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=525')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('That category no longer exists');return false}
     const raw={};catRounds(t,c,multi).forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk+(multi?'~m':'');LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -554,13 +554,13 @@ function menuHTML(){
       ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">Most-rated songs</button>`:''}
       <button class="mbtn" data-go="picks">Your picks<small>${n} of ${YEARS.length}</small></button>
       <button class="mbtn" data-key>YouTube key<small>${YTKEY?'Added':'Optional'}</small></button>
-    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.24, 21 Nov</p></div>`;
+    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.25, 21 Nov</p></div>`;
 }
 /* ---------- sharing ---------- */
 const B36='0123456789abcdefghijklmnopqrstuvwxyz';
 const modeTitle=()=>KIND()==='year'?'By year':KIND()==='month'?'Month by month, the '+GAME:CATNAME+(GAME.endsWith(':multi')?', several per album':'');
 function shareURL(){const code=YEARS.map(y=>picks[y]!=null?B36[picks[y]]:'_').join('').replace(/_+$/,'').replace(/_{2,35}/g,m=>'-'+B36[m.length]);
-  let extra='';if(GAME.startsWith('c:custom:')){const c=customs().find(c=>'c:custom:'+c.id===GAME);if(c)extra='&c='+encodeURIComponent(JSON.stringify({n:c.name,f:c.from,t:c.to,a:c.artists.map(a=>[a.id,a.name,a.hits?1:0]),b:(c.albums||[]).map(a=>[a.id,a.title,a.artist,a.hits?1:0])}))}
+  let extra='';if(GAME.startsWith('c:custom:')){const c=customs().find(c=>'c:custom:'+c.id===GAME);if(c)extra='&c='+encodeURIComponent(JSON.stringify({n:c.name,f:c.from,t:c.to,a:c.artists.map(a=>[a.id,a.name,a.hits?1:0,a.ep?1:0,a.sg?1:0,a.lv?1:0]),b:(c.albums||[]).map(a=>[a.id,a.title,a.artist,a.hits?1:0])}))}
   return location.origin+location.pathname+'?g='+encodeURIComponent(GAME)+'&p='+code+extra}
 let SHARED=null;
 function sharedHTML(){
@@ -637,11 +637,15 @@ const catMulti=()=>store.get('catmulti',false);
 /* ---------- custom games: your own artists and years, built from Deezer ---------- */
 const customs=()=>store.get('customs',[]);
 const saveCustoms=l=>store.set('customs',l);
-const csig=c=>JSON.stringify([c.from,c.to,c.artists.map(a=>a.id+(a.hits?'h':'')),(c.albums||[]).map(a=>a.id+(a.hits?'h':''))]);
+const aopt=a=>(a.ep?'e':'')+(a.sg?'s':'')+(a.lv?'l':'');   // which extra release types an artist includes
+const csig=c=>JSON.stringify([c.from,c.to,c.artists.map(a=>a.id+(a.hits?'h':'')+aopt(a)),(c.albums||[]).map(a=>a.id+(a.hits?'h':''))]);
 let editing=null,building=null;
 const NZ=x=>(x||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\s*[\(\[].*?[\)\]]/g,'').replace(/\s+-\s+.*$/,'').replace(/^the /,'').replace(/[^a-z0-9]+/g,'');
 const CBAD=/bonus track|\[bonus|\([^)]*\b(extended|mix|dub|edit|version)\b[^)]*\)|\blive\b|remix|demo|instrumental|acoustic|karaoke|commentary|interview|\bmono\b|edit\)|version\)|session|tape\b|\btake \d|\d{4} mix|mix\)|outtake|rehearsal|alternate|rough/i;
 const CBADALB=/\blive\b|remixed|\bremix|re-?mix|\breworks?\b|reworked|reimagined|\bdub\b|\bversions\b|original (motion picture|score|cast|soundtrack)|soundtrack from|the soundtrack|music from|\bost\b|b-sides|b sides|rarities|odds (&|and) sods|demos|unreleased|outtakes|\bsessions?\b|complete|collected|box set|boxset|definitive|20th century masters|retrospective|\bcovers\b|compilation|anniversary collection|in concert|unplugged|\bmtv\b|\bbbc\b|\bpeel\b|bootleg|oldies|\bselection\b|rooftop performance|early tapes|com lag|broadcast edition|inspired|[a-z]\s+(19|20)\d\d$|greatest hits|very best|best of|collection|anthology|the essential|karaoke|tribute|playlist|\bhits\b|singles (collection|club)|^the singles|past masters|^1( \(|$)|\b(19|20)\d\d\s*[-–]\s*(19|20)\d\d\b|number ones/i;
+const COMPALB=/remixed|\bremix|re-?mix|\breworks?\b|reworked|reimagined|\bdub\b|\bversions\b|original (motion picture|score|cast|soundtrack)|soundtrack from|the soundtrack|music from|\bost\b|b-sides|b sides|rarities|odds (&|and) sods|demos|unreleased|outtakes|complete|collected|box set|boxset|definitive|20th century masters|retrospective|\bcovers\b|compilation|anniversary collection|bootleg|oldies|\bselection\b|early tapes|com lag|inspired|greatest hits|very best|best of|collection|anthology|the essential|karaoke|tribute|playlist|\bhits\b|singles (collection|club)|^the singles|past masters|^1( \(|$)|\b(19|20)\d\d\s*[-–]\s*(19|20)\d\d\b|number ones/i;
+const LIVEALB=/\blive\b|in concert|unplugged|\bmtv\b|\bbbc\b|\bpeel\b|rooftop performance|broadcast edition|[a-z]\s+(19|20)\d\d$|\bsessions?\b/i;
+const CBADNL=new RegExp(CBAD.source.replace('|\\blive\\b|','|'),'i');   // track filter that lets live recordings through
 const REISSUE=/remaster|deluxe|anniversary|expanded|edition|reissue|super|mono|stereo|mix\)/i;
 let AY=null;
 // polite request queues: Deezer about 9 a second, MusicBrainz 1 a second
@@ -651,14 +655,14 @@ let mbNext=0;async function mbGet(u){const now=Date.now();const t=Math.max(now,m
 // original release years for a whole artist in two MusicBrainz requests, remembered between builds
 const MBA={};
 function mbArtistYears(name){const k=NZ(name);if(MBA[k])return MBA[k];
-  MBA[k]=(async()=>{const c=store.get('mbb-'+k,null);if(c)return c;const map={},good=new Set(),bad=new Set();let ok=false;
+  MBA[k]=(async()=>{const c=store.get('mbc-'+k,null);if(c)return c;const map={},good=new Set(),bad=new Set(),liv=new Set();let ok=false;
     try{const j=await mbGet('https://musicbrainz.org/ws/2/artist/?fmt=json&limit=5&query='+encodeURIComponent('artist:"'+name.replace(/"/g,'')+'"'));
       const A=(j.artists||[]).find(x=>NZ(x.name)===k&&x.score>=90)||(j.artists||[])[0];
       if(A&&A.score>=80){for(let off=0;off<300;off+=100){const g=await mbGet('https://musicbrainz.org/ws/2/release-group?fmt=json&limit=100&offset='+off+'&artist='+A.id);
         (g['release-groups']||[]).forEach(r=>{const y=+(r['first-release-date']||'').slice(0,4);const t=NZ(r.title);if(y&&t&&(!map[t]||y<map[t]))map[t]=y;
-          if(t){const sec=r['secondary-types']||[];if(sec.some(z=>/compilation|remix|live|soundtrack|dj-mix|mixtape|demo|interview|spokenword/i.test(z)))bad.add(t);else good.add(t)}});
+          if(t){const sec=r['secondary-types']||[];if(sec.some(z=>/compilation|remix|soundtrack|dj-mix|mixtape|demo|interview|spokenword/i.test(z)))bad.add(t);else if(sec.some(z=>/live/i.test(z)))liv.add(t);else good.add(t)}});
         if(off+100>=(g['release-group-count']||0))break}ok=true}}catch(e){}
-    map['#bad']=[...bad].filter(t=>!good.has(t));if(ok)try{store.set('mbb-'+k,map)}catch(e){}else delete MBA[k];return map})();
+    map['#bad']=[...bad].filter(t=>!good.has(t));map['#live']=[...liv].filter(t=>!good.has(t)&&!bad.has(t));if(ok)try{store.set('mbc-'+k,map)}catch(e){}else delete MBA[k];return map})();
   return MBA[k]}
 const cleanAlb=t=>t.replace(/\s*[\(\[][^\)\]]*(remaster|deluxe|anniversary|expanded|edition|mono|stereo|mix|version)[^\)\]]*[\)\]]/ig,'').trim();
 function yearFor(al,artist){const clean=cleanAlb(al.title);const dy=+(al.release_date||'0').slice(0,4);
@@ -666,11 +670,14 @@ function yearFor(al,artist){const clean=cleanAlb(al.title);const dy=+(al.release
   mbArtistYears(artist);return {y:dy,clean,fix:true,artist}}
 async function buildCustom(cfg,prog){
   const songs=[];let done=0;const albumYear={};const total=cfg.artists.length+(cfg.albums||[]).length;
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=524d')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=525')).json()}catch(e){AY={}}}
   const isComp=al=>!al||al.type==='compile'||CBADALB.test(al.title);
   const albMeta={},FIXME=[],CACHE=[];
   async function oneArtist(a){
-    const cached=store.get('cart-'+a.id,null);if(cached&&cached.v===10){songs.push(...cached.s);prog&&prog(++done,total,a.name);return}
+    const ck='cart-'+a.id+aopt(a);const BADT=a.lv?CBADNL:CBAD;
+    // which releases this artist's songs may come from: studio albums always; EPs, singles and live albums only when switched on
+    const isComp=al=>{if(!al||al.type==='compile'||COMPALB.test(al.title))return true;if(LIVEALB.test(al.title))return !a.lv;if(al.type==='ep')return !a.ep;if(al.type==='single')return !a.sg;return false};
+    const cached=store.get(ck,null);if(cached&&cached.v===11){songs.push(...cached.s);prog&&prog(++done,total,a.name);return}
     mbArtistYears(a.name);   // start the MusicBrainz lookup while Deezer works
     const LIST={};
     const getAlb=async id=>{if(id in albumYear)return albumYear[id];albumYear[id]=(async()=>{try{const al=LIST[id]||await dz('https://api.deezer.com/album/'+id);if(!al||al.error)return null;
@@ -680,20 +687,24 @@ async function buildCustom(cfg,prog){
     try{[top,albums]=await Promise.all([dz('https://api.deezer.com/artist/'+a.id+'/top?limit=100').then(r=>r.data||[]),dz('https://api.deezer.com/artist/'+a.id+'/albums?limit=150').then(r=>r.data||[])])}catch(e){}
     albums.forEach(x=>{LIST[x.id]=x});   // the artist's album list already has dates and covers, so most albums need no extra request
     const A={};await Promise.all([...new Set(top.map(t=>t.album&&t.album.id).filter(Boolean))].map(async id=>{A[id]=await getAlb(id)}));
-    const best={};
-    const consider=(t,al,rank)=>{if(!al||!al.y||!t.preview||CBAD.test(t.title)||isComp(al))return;const k=NZ(t.title);const cur=best[k];
-      if(!cur||al.y<cur[7]||(al.y===cur[7]&&rank>cur[5]))best[k]=[t.title.replace(/\s+-\s+(\d{4}\s+)?Remaster.*$/i,'').replace(/\s*\((\d{4}\s+)?Remaster[^)]*\)/i,''),a.name,al.title,al.cover,null,rank,t.id,al.y]};
+    const best={},BT={};
+    const consider=(t,al,rank)=>{if(!al||!al.y||!t.preview||BADT.test(t.title)||isComp(al))return;const k=NZ(t.title);const cur=best[k];const pr=al.type==='album'&&!LIVEALB.test(al.title)?2:al.type==='ep'?1:0;   // same year: album beats EP beats single or live
+      if(!cur||al.y<cur[7]||(al.y===cur[7]&&(pr>BT[k]||(pr===BT[k]&&rank>cur[5]))))BT[k]=pr,best[k]=[t.title.replace(/\s+-\s+(\d{4}\s+)?Remaster.*$/i,'').replace(/\s*\((\d{4}\s+)?Remaster[^)]*\)/i,''),a.name,al.title,al.cover,null,rank,t.id,al.y]};
     top.forEach(t=>consider(t,A[t.album&&t.album.id],t.rank));
     // studio albums: find hits that only showed up on compilations, and make sure every album has its 3 biggest songs
-    const comp=new Map(top.filter(t=>isComp(A[t.album&&t.album.id])&&!CBAD.test(t.title)&&!best[NZ(t.title)]).map(t=>[NZ(t.title),t]));
+    const comp=new Map(top.filter(t=>isComp(A[t.album&&t.album.id])&&!BADT.test(t.title)&&!best[NZ(t.title)]).map(t=>[NZ(t.title),t]));
     const cnt={};Object.values(best).forEach(x=>{const k=NZ(x[2]);cnt[k]=(cnt[k]||0)+1});const seenA=new Set();
-    const studio=albums.filter(x=>x.record_type==='album'&&!CBADALB.test(x.title)).sort((p,q)=>(REISSUE.test(p.title)?1:0)-(REISSUE.test(q.title)?1:0))
-      .filter(x=>{const k=NZ(cleanAlb(x.title).replace(/\s*[\(\[].*?[\)\]]/g,''));if(seenA.has(k))return false;seenA.add(k);return (cnt[k]||0)<3||(comp.size&&seenA.size<=15)}).slice(0,30);
+    const studio=albums.filter(x=>(x.record_type==='album'||(a.ep&&x.record_type==='ep'))&&!COMPALB.test(x.title)&&(a.lv||!LIVEALB.test(x.title))).sort((p,q)=>(REISSUE.test(p.title)?1:0)-(REISSUE.test(q.title)?1:0))
+      .filter(x=>{const k=NZ(cleanAlb(x.title).replace(/\s*[\(\[].*?[\)\]]/g,''));if(seenA.has(k))return false;seenA.add(k);return (cnt[k]||0)<3||(comp.size&&seenA.size<=15)}).slice(0,a.ep||a.lv?45:30);
     await Promise.all(studio.map(async x=>{try{const tr=((await dz('https://api.deezer.com/album/'+x.id+'/tracks?limit=100')).data)||[];const al=await getAlb(x.id);if(!al||isComp(al))return;
-      tr.forEach(y=>{const t=comp.get(NZ(y.title));if(t&&!CBAD.test(y.title)&&y.preview)consider({...y,album:{id:x.id}},al,t.rank)});
-      if((cnt[NZ(al.title)]||0)<3)tr.filter(t=>t.preview&&!CBAD.test(t.title)).sort((p,q)=>(q.rank||0)-(p.rank||0)).slice(0,3).forEach(t=>consider({...t,album:{id:x.id}},al,t.rank||0))}catch(e){}}));
+      tr.forEach(y=>{const t=comp.get(NZ(y.title));if(t&&!BADT.test(y.title)&&y.preview)consider({...y,album:{id:x.id}},al,t.rank)});
+      if((cnt[NZ(al.title)]||0)<3)tr.filter(t=>t.preview&&!BADT.test(t.title)).sort((p,q)=>(q.rank||0)-(p.rank||0)).slice(0,3).forEach(t=>consider({...t,album:{id:x.id}},al,t.rank||0))}catch(e){}}));
+    // singles: the lead song of each single that isn't already in the game
+    if(a.sg){const sg=albums.filter(x=>x.record_type==='single'&&!COMPALB.test(x.title)&&(a.lv||!LIVEALB.test(x.title))&&!best[NZ(x.title)]).slice(0,30);
+      await Promise.all(sg.map(async x=>{try{const tr=((await dz('https://api.deezer.com/album/'+x.id+'/tracks?limit=20')).data)||[];const al=await getAlb(x.id);if(!al)return;
+        const t=tr.find(t=>NZ(t.title)===NZ(x.title))||tr[0];if(t)consider({...t,album:{id:x.id}},al,t.rank||0)}catch(e){}}))}
     const mine=Object.values(best).map(s=>{const x=[...s,a.id];const al=albMeta[NZ(a.name)+'|'+NZ(s[2])];if(al&&al.fix)FIXME.push([x,al]);return x});songs.push(...mine);
-    if(top.length)CACHE.push(['cart-'+a.id,mine]);
+    if(top.length)CACHE.push([ck,mine]);
     prog&&prog(++done,total,a.name)}
   // three artists at a time
   const q=[...cfg.artists];await Promise.all([0,1,2].map(async()=>{while(q.length)await oneArtist(q.shift())}));
@@ -712,10 +723,10 @@ async function buildCustom(cfg,prog){
     FIXME.forEach(([x,al])=>{const mb=(maps[NZ(al.artist)]||{})[NZ(al.title)];if(mb&&(mb<x[7]||!x[7]))x[7]=mb})}
   // MusicBrainz marks compilations, remix and live albums; drop artist songs that only come from one of those
   {prog&&prog(done,total,'checking albums');const drop=new Set();
-    await Promise.all(cfg.artists.map(async a=>{const m=await mbArtistYears(a.name);const bad=new Set((m&&m['#bad'])||[]);if(!bad.size)return;
+    await Promise.all(cfg.artists.map(async a=>{const m=await mbArtistYears(a.name);const bad=new Set([...((m&&m['#bad'])||[]),...(a.lv?[]:((m&&m['#live'])||[]))]);if(!bad.size)return;
       songs.forEach(x=>{if(String(x[8])===String(a.id)&&bad.has(NZ(x[2])))drop.add(x)})}));
     if(drop.size){for(let i=songs.length;i--;)if(drop.has(songs[i]))songs.splice(i,1);CACHE.forEach(c=>{c[1]=c[1].filter(x=>!drop.has(x))})}}
-  CACHE.forEach(([k,v])=>{try{store.set(k,{v:10,s:v})}catch(e){}});
+  CACHE.forEach(([k,v])=>{try{store.set(k,{v:11,s:v})}catch(e){}});
   // "big songs only": per album keep the 2 most-played, plus any within 80% of that album's biggest
   const hitsKeys=new Set([...cfg.artists.filter(a=>a.hits).map(a=>String(a.id)),...(cfg.albums||[]).filter(a=>a.hits).map(a=>'al'+a.id)]);
   if(hitsKeys.size){const groups={};songs.forEach(x=>{if(hitsKeys.has(String(x[8]))){const k=x[8]+'|'+NZ(x[2]);(groups[k]=groups[k]||[]).push(x)}});
@@ -752,7 +763,7 @@ function customHTML(){
       <label>Name<input id="cname" value="${esc(e.name)}" placeholder="My favourite bands" maxlength="40"></label>
       <div class="crange"><label>From<select id="cfrom">${opt(e.from)}</select></label><label>To<select id="cto">${opt(e.to)}</select></label></div>
       <label>Artists, one per line<span class="hint">Press Check names, then switch any artist to <i>Big songs only</i> to keep just the 2 or 3 biggest songs from each of their albums.</span><textarea id="cart" rows="8" placeholder="Talking Heads&#10;Radiohead&#10;Swans">${esc(e.text||e.artists.map(a=>a.name).join('\n'))}</textarea></label>
-      <div class="cfound">${(e.artists||[]).map((a,i)=>`<span class="chip">${a.pic?`<img src="${a.pic}" alt="">`:''}${esc(a.name)}${a.guess?' <small>(closest match for “'+esc(a.q)+'”)</small>':''}<button class="hits ${a.hits?'on':''}" data-chits="${i}" title="Only keep the 2 or 3 most-played songs from each album">${a.hits?'Big songs only':'All songs'}</button></span>`).join('')}${(e.missing||[]).map(m=>`<span class="chip bad">Not found: ${esc(m)}</span>`).join('')}</div>
+      <div class="cfound">${(e.artists||[]).map((a,i)=>`<span class="chip">${a.pic?`<img src="${a.pic}" alt="">`:''}${esc(a.name)}${a.guess?' <small>(closest match for “'+esc(a.q)+'”)</small>':''}<button class="hits ${a.hits?'on':''}" data-chits="${i}" title="Only keep the 2 or 3 most-played songs from each album">${a.hits?'Big songs only':'All songs'}</button><button class="hits ${a.ep?'on':''}" data-copt="ep" data-i="${i}" title="Include EPs">EPs</button><button class="hits ${a.sg?'on':''}" data-copt="sg" data-i="${i}" title="Include singles that aren't on an album">Singles</button><button class="hits ${a.lv?'on':''}" data-copt="lv" data-i="${i}" title="Include live albums and live recordings">Live</button></span>`).join('')}${(e.missing||[]).map(m=>`<span class="chip bad">Not found: ${esc(m)}</span>`).join('')}</div>
       <label>Albums, one per line<span class="hint">Add just one album instead of a whole discography. Put the artist after a dash if the name is common, like <i>Pet Sounds - The Beach Boys</i>.</span><textarea id="calb" rows="4" placeholder="Pet Sounds - The Beach Boys&#10;Loveless">${esc(e.atext||(e.albums||[]).map(a=>a.title+' - '+a.artist).join('\n'))}</textarea></label>
       <div class="cfound">${(e.albums||[]).map((a,i)=>`<span class="chip">${a.pic?`<img src="${a.pic}" alt="" style="border-radius:3px">`:''}${esc(a.title)} <small>${esc(a.artist)}</small>${a.guess?' <small>(closest match for “'+esc(a.q)+'”)</small>':''}<button class="hits ${a.hits?'on':''}" data-ahits="${i}">${a.hits?'Big songs only':'All songs'}</button></span>`).join('')}${(e.amissing||[]).map(m=>`<span class="chip bad">Album not found: ${esc(m)}</span>`).join('')}</div>
       <div class="cact"><button class="mbtn" data-cfind>Check names</button><button class="mbtn primary" data-cbuild>Build and play</button>${editing?`<button class="mbtn" data-ccancel>Cancel</button>`:''}</div></div></div>`;
@@ -764,7 +775,7 @@ async function findArtists(text){
   return {artists:out,missing};
 }
 async function findAlbums(text){
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=524d')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=525')).json()}catch(e){AY={}}}
   const lines=[...new Set(text.split(/\n/).map(x=>x.trim()).filter(Boolean))].slice(0,300);const out=[],missing=[];
   const raw=x=>(x||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9()\[\]]+/g,'');
   const OST=/soundtrack|original (motion picture|score|cast)|music from|\bost\b|score\b|tribute|karaoke|in the style of/i;
@@ -794,9 +805,10 @@ function bindCustom(){
   document.querySelectorAll('[data-cedit]').forEach(b=>b.onclick=e=>{e.stopPropagation();const c=customs().find(c=>c.id===b.dataset.cedit);editing=JSON.parse(JSON.stringify(c));editing.text=c.artists.map(a=>a.name).join('\n');editing.atext=(c.albums||[]).map(a=>a.title+' - '+a.artist).join('\n');render()});
   document.querySelectorAll('[data-cdel]').forEach(b=>b.onclick=e=>{e.stopPropagation();if(b.dataset.armed){const id=b.dataset.cdel;saveCustoms(customs().filter(c=>c.id!==id));try{localStorage.removeItem('sos2-custom-'+id)}catch(x){}if(GAME==='c:custom:'+id)setGame('year');toast('Custom game deleted');render()}else{b.dataset.armed=1;b.textContent='Click again to delete'}});
   document.querySelectorAll('[data-chits]').forEach(b=>b.onclick=e=>{e.stopPropagation();keep();const a=editing.artists[+b.dataset.chits];a.hits=!a.hits;render()});
+  document.querySelectorAll('[data-copt]').forEach(b=>b.onclick=e=>{e.stopPropagation();keep();const a=editing.artists[+b.dataset.i];a[b.dataset.copt]=!a[b.dataset.copt];render()});
   document.querySelectorAll('[data-ahits]').forEach(b=>b.onclick=e=>{e.stopPropagation();keep();const a=editing.albums[+b.dataset.ahits];a.hits=!a.hits;render()});
   const cc=$('[data-ccancel]');if(cc)cc.onclick=e=>{e.stopPropagation();editing=null;render()};
-  const fb=$('[data-cfind]');if(fb)fb.onclick=async e=>{e.stopPropagation();keep();fb.textContent='Checking…';const r=await findArtists(editing.text);const ra=await findAlbums(editing.atext||'');Object.assign(editing,r,{text:r.artists.map(a=>a.name).join('\n')+(r.missing.length?'\n'+r.missing.join('\n'):''),albums:ra.albums,amissing:ra.missing,atext:ra.albums.map(a=>a.title+' - '+a.artist).join('\n')+(ra.missing.length?'\n'+ra.missing.join('\n'):'')});render()};
+  const fb=$('[data-cfind]');if(fb)fb.onclick=async e=>{e.stopPropagation();keep();fb.textContent='Checking…';const r=await findArtists(editing.text);const prev=editing.artists||[];r.artists.forEach(a=>{const o=prev.find(p=>p.id===a.id);if(o)['hits','ep','sg','lv'].forEach(f=>{if(o[f])a[f]=true})});const ra=await findAlbums(editing.atext||'');Object.assign(editing,r,{text:r.artists.map(a=>a.name).join('\n')+(r.missing.length?'\n'+r.missing.join('\n'):''),albums:ra.albums,amissing:ra.missing,atext:ra.albums.map(a=>a.title+' - '+a.artist).join('\n')+(ra.missing.length?'\n'+ra.missing.join('\n'):'')});render()};
   const bb=$('[data-cbuild]');if(bb)bb.onclick=async e=>{e.stopPropagation();keep();const f=editing;
     if(f.from>f.to){toast('The start year needs to be before the end year');return}
     bb.textContent='Checking artists…';
@@ -810,7 +822,7 @@ function bindCustom(){
     const atodo=atyped.filter(t=>!aknown.some(a=>t===a.q||NZ(t)===NZ(a.title+' - '+a.artist)||NZ(t)===NZ(a.title)));
     const ra=atodo.length?await findAlbums(atodo.join('\n')):{albums:[],missing:[]};const albums=[...aknown,...ra.albums];
     if(!artists.length&&!albums.length){toast('Add at least one artist or album');render();return}
-    const cfg={id:f.id||Date.now().toString(36),name:f.name||[...artists.map(a=>a.name),...albums.map(a=>a.title)].slice(0,3).join(', ')+(artists.length+albums.length>3?' and more':''),from:f.from,to:f.to,artists:artists.map(a=>({id:a.id,name:a.name,pic:a.pic,hits:!!a.hits})),albums:albums.map(a=>({id:a.id,title:a.title,artist:a.artist,pic:a.pic,q:a.q,hits:!!a.hits}))};
+    const cfg={id:f.id||Date.now().toString(36),name:f.name||[...artists.map(a=>a.name),...albums.map(a=>a.title)].slice(0,3).join(', ')+(artists.length+albums.length>3?' and more':''),from:f.from,to:f.to,artists:artists.map(a=>({id:a.id,name:a.name,pic:a.pic,hits:!!a.hits,ep:!!a.ep,sg:!!a.sg,lv:!!a.lv})),albums:albums.map(a=>({id:a.id,title:a.title,artist:a.artist,pic:a.pic,q:a.q,hits:!!a.hits}))};
     saveCustoms([...customs().filter(c=>c.id!==cfg.id),cfg]);editing=null;
     if(await setGame('c:custom:'+cfg.id)){view='menu';render();const miss=[...r.missing,...ra.missing];if(miss.length)toast('Couldn’t find: '+miss.join(', '),5000)}};
 }
@@ -823,7 +835,7 @@ function catsHTML(){
     ${isAlbumRounds(catTab)?`<div class="pills decs" style="margin:0 auto 22px;width:max-content"><span class="${catMulti()?'':'on'}" data-catmulti="0">One song per album</span><span class="${catMulti()?'on':''}" data-catmulti="1">Several songs per album</span></div>`:''}
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const m=isAlbumRounds(catTab)&&catMulti();const id='c:'+catTab+':'+c.id+(m?':multi':'');const n=Object.keys(store.get('picks-'+id,{})).length;const r=catRounds(catTab,c,m).length;if(!r)return '';return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${r} rounds</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=524d')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=525')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
@@ -968,7 +980,7 @@ $('#dockx').onclick=()=>{
   $('#dock').classList.remove('on');document.body.classList.remove('docked')};
 yi=Math.min(store.get('yi',0),YEARS.length-1);
 (async()=>{const q=new URLSearchParams(location.search);
-  if(q.get('c')){try{const j=JSON.parse(q.get('c'));const cfg={id:q.get('g').slice(9),name:j.n,from:+j.f,to:+j.t,artists:j.a.map(([id,name,h])=>({id,name,hits:!!h})),albums:(j.b||[]).map(([id,title,artist,h])=>({id,title,artist,hits:!!h}))};if(!customs().find(c=>c.id===cfg.id))saveCustoms([...customs(),cfg])}catch(e){}}
+  if(q.get('c')){try{const j=JSON.parse(q.get('c'));const cfg={id:q.get('g').slice(9),name:j.n,from:+j.f,to:+j.t,artists:j.a.map(([id,name,h,ep,sg,lv])=>({id,name,hits:!!h,ep:!!ep,sg:!!sg,lv:!!lv})),albums:(j.b||[]).map(([id,title,artist,h])=>({id,title,artist,hits:!!h}))};if(!customs().find(c=>c.id===cfg.id))saveCustoms([...customs(),cfg])}catch(e){}}
   if(q.get('p')!=null&&q.get('g')){const g=q.get('g');if(g==='year'||await setGame(g)){if(g==='year'&&GAME!=='year')await setGame('year');
     SHARED={};(q.get('p')||'').replace(/-([0-9a-z])/g,(m,c)=>'_'.repeat(B36.indexOf(c))).split('').forEach((ch,i)=>{const n=B36.indexOf(ch);if(n>=0&&YEARS[i]!=null)SHARED[YEARS[i]]=n});view='shared';render();
     history.replaceState(null,'',location.pathname);return}}
