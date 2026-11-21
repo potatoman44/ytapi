@@ -295,7 +295,7 @@ document.body.className='th-'+store.get('theme','gold');
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=526c');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=526d');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
   if(g.startsWith('c:custom:')){const id=g.slice(9);const cfg=customs().find(c=>c.id===id);if(!cfg){toast('That custom game no longer exists');return false}
     const built=await ensureBuilt(cfg);if(!built)return false;
@@ -303,7 +303,7 @@ async function setGame(g){
     const raw={};built.rounds.forEach(([yr,songs])=>{const k='C~custom~'+id+'~'+yr;LABELS[k]=yr;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=cfg.name;RAW=raw;YEARS=Object.keys(raw);
     picks=store.get(gk('picks'),{});yi=Math.min(store.get(gk('yi'),0),Math.max(0,YEARS.length-1));dm=null;return true}
-  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=526c')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
+  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=526d')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('That category no longer exists');return false}
     const raw={};catRounds(t,c,multi).forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk+(multi?'~m':'');LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -672,14 +672,14 @@ function yearFor(al,artist){const clean=cleanAlb(al.title);const dy=+(al.release
   mbArtistYears(artist);return {y:dy,clean,fix:true,artist}}
 async function buildCustom(cfg,prog){
   const songs=[];let done=0;const albumYear={};const total=cfg.artists.length+(cfg.albums||[]).length;
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=526c')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=526d')).json()}catch(e){AY={}}}
   const isComp=al=>!al||al.type==='compile'||CBADALB.test(al.title);
   const albMeta={},FIXME=[],CACHE=[];
   async function oneArtist(a){
     const ck='cart-'+a.id+aopt(a);const BADT=a.lv?CBADNL:CBAD;
     // which releases this artist's songs may come from: studio albums always; EPs, singles and live albums only when switched on
     const isComp=al=>{if(!al||al.type==='compile'||COMPALB.test(al.title))return true;if(LIVEALB.test(al.title))return !a.lv;if(al.type==='ep')return !a.ep;if(al.type==='single')return !a.sg;return false};
-    const cached=store.get(ck,null);if(cached&&cached.v===14){songs.push(...cached.s);prog&&prog(++done,total,a.name);return}
+    const cached=store.get(ck,null);if(cached&&cached.v===15){songs.push(...cached.s);prog&&prog(++done,total,a.name);return}
     mbArtistYears(a.name);   // start the MusicBrainz lookup while Deezer works
     const LIST={};
     const getAlb=async id=>{if(id in albumYear)return albumYear[id];albumYear[id]=(async()=>{try{const al=LIST[id]||await dz('https://api.deezer.com/album/'+id);if(!al||al.error)return null;
@@ -700,7 +700,7 @@ async function buildCustom(cfg,prog){
       .filter(x=>{const k=NZ(cleanAlb(x.title).replace(/\s*[\(\[].*?[\)\]]/g,''));if(seenA.has(k))return false;seenA.add(k);return (cnt[k]||0)<3||(comp.size&&seenA.size<=15)}).slice(0,a.ep||a.lv?45:30);
     await Promise.all(studio.map(async x=>{try{const tr=((await dz('https://api.deezer.com/album/'+x.id+'/tracks?limit=100')).data)||[];const al=await getAlb(x.id);if(!al||isComp(al))return;
       tr.forEach(y=>{const t=comp.get(NZ(y.title));if(t&&!BADT.test(y.title)&&y.preview)consider({...y,album:{id:x.id}},al,t.rank)});
-      if((cnt[NZ(al.title)]||0)<3)tr.filter(t=>t.preview&&!BADT.test(t.title)).sort((p,q)=>(q.rank||0)-(p.rank||0)).slice(0,3).forEach(t=>consider({...t,album:{id:x.id}},al,t.rank||0))}catch(e){}}));
+      const have=cnt[NZ(al.title)]||0;if(have<3)tr.filter(t=>t.preview&&!BADT.test(t.title)&&!best[NZ(t.title)]).sort((p,q)=>(q.rank||0)-(p.rank||0)).slice(0,3-have).forEach(t=>consider({...t,album:{id:x.id}},al,t.rank||0))}catch(e){}}));
     // singles: the lead song of each single that isn't already in the game
     if(a.sg){const sg=albums.filter(x=>x.record_type==='single'&&!COMPALB.test(x.title)&&(a.lv||!LIVEALB.test(x.title))&&!best[NZ(x.title)]).slice(0,30);
       await Promise.all(sg.map(async x=>{try{const tr=((await dz('https://api.deezer.com/album/'+x.id+'/tracks?limit=20')).data)||[];const al=await getAlb(x.id);if(!al)return;
@@ -730,7 +730,7 @@ async function buildCustom(cfg,prog){
       const isBad=t=>{const ks=[...tkeys(t),...t.split(/\s+\/\s+/).map(NZ)];if(ks.some(k=>good.has(k)))return false;return ks.some(k=>bad.has(k)||(k.length>=6&&[...bad].some(b=>b.startsWith(k)&&/^\d+$/.test(b.slice(k.length)))))};
       songs.forEach(x=>{if(String(x[8])===String(a.id)&&isBad(x[2]))drop.add(x)})}));
     if(drop.size){for(let i=songs.length;i--;)if(drop.has(songs[i]))songs.splice(i,1);CACHE.forEach(c=>{c[1]=c[1].filter(x=>!drop.has(x))})}}
-  CACHE.forEach(([k,v])=>{try{store.set(k,{v:14,s:v})}catch(e){}});
+  CACHE.forEach(([k,v])=>{try{store.set(k,{v:15,s:v})}catch(e){}});
   // "big songs only": per album keep the 2 most-played, plus any within 80% of that album's biggest
   const hitsKeys=new Set([...cfg.artists.filter(a=>a.hits).map(a=>String(a.id)),...(cfg.albums||[]).filter(a=>a.hits).map(a=>'al'+a.id)]);
   if(hitsKeys.size){const groups={};songs.forEach(x=>{if(hitsKeys.has(String(x[8]))){const k=x[8]+'|'+NZ(x[2]);(groups[k]=groups[k]||[]).push(x)}});
@@ -779,7 +779,7 @@ async function findArtists(text){
   return {artists:out,missing};
 }
 async function findAlbums(text){
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=526c')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=526d')).json()}catch(e){AY={}}}
   const lines=[...new Set(text.split(/\n/).map(x=>x.trim()).filter(Boolean))].slice(0,300);const out=[],missing=[];
   const raw=x=>(x||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9()\[\]]+/g,'');
   const OST=/soundtrack|original (motion picture|score|cast)|music from|\bost\b|score\b|tribute|karaoke|in the style of/i;
@@ -839,7 +839,7 @@ function catsHTML(){
     ${isAlbumRounds(catTab)?`<div class="pills decs" style="margin:0 auto 22px;width:max-content"><span class="${catMulti()?'':'on'}" data-catmulti="0">One song per album</span><span class="${catMulti()?'on':''}" data-catmulti="1">Several songs per album</span></div>`:''}
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const m=isAlbumRounds(catTab)&&catMulti();const id='c:'+catTab+':'+c.id+(m?':multi':'');const n=Object.keys(store.get('picks-'+id,{})).length;const r=catRounds(catTab,c,m).length;if(!r)return '';return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${r} rounds</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=526c')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=526d')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
