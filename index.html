@@ -295,7 +295,7 @@ document.body.className='th-'+store.get('theme','gold');
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=525');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=525b');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
   if(g.startsWith('c:custom:')){const id=g.slice(9);const cfg=customs().find(c=>c.id===id);if(!cfg){toast('That custom game no longer exists');return false}
     const built=await ensureBuilt(cfg);if(!built)return false;
@@ -303,7 +303,7 @@ async function setGame(g){
     const raw={};built.rounds.forEach(([yr,songs])=>{const k='C~custom~'+id+'~'+yr;LABELS[k]=yr;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=cfg.name;RAW=raw;YEARS=Object.keys(raw);
     picks=store.get(gk('picks'),{});yi=Math.min(store.get(gk('yi'),0),Math.max(0,YEARS.length-1));dm=null;return true}
-  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=525')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
+  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=525b')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('That category no longer exists');return false}
     const raw={};catRounds(t,c,multi).forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk+(multi?'~m':'');LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -670,7 +670,7 @@ function yearFor(al,artist){const clean=cleanAlb(al.title);const dy=+(al.release
   mbArtistYears(artist);return {y:dy,clean,fix:true,artist}}
 async function buildCustom(cfg,prog){
   const songs=[];let done=0;const albumYear={};const total=cfg.artists.length+(cfg.albums||[]).length;
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=525')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=525b')).json()}catch(e){AY={}}}
   const isComp=al=>!al||al.type==='compile'||CBADALB.test(al.title);
   const albMeta={},FIXME=[],CACHE=[];
   async function oneArtist(a){
@@ -762,7 +762,7 @@ function customHTML(){
     <div class="cform"><h2>${editing&&editing.id?'Edit '+esc(editing.name):'New custom game'}</h2>
       <label>Name<input id="cname" value="${esc(e.name)}" placeholder="My favourite bands" maxlength="40"></label>
       <div class="crange"><label>From<select id="cfrom">${opt(e.from)}</select></label><label>To<select id="cto">${opt(e.to)}</select></label></div>
-      <label>Artists, one per line<span class="hint">Press Check names, then switch any artist to <i>Big songs only</i> to keep just the 2 or 3 biggest songs from each of their albums.</span><textarea id="cart" rows="8" placeholder="Talking Heads&#10;Radiohead&#10;Swans">${esc(e.text||e.artists.map(a=>a.name).join('\n'))}</textarea></label>
+      <label>Artists, one per line<span class="hint">Press Check names, then switch any artist to <i>Big songs only</i> to keep just the 2 or 3 biggest songs from each of their albums. Studio albums are always in; turn on <i>EPs</i>, <i>Singles</i> or <i>Live</i> to add those too.</span><textarea id="cart" rows="8" placeholder="Talking Heads&#10;Radiohead&#10;Swans">${esc(e.text||e.artists.map(a=>a.name).join('\n'))}</textarea></label>
       <div class="cfound">${(e.artists||[]).map((a,i)=>`<span class="chip">${a.pic?`<img src="${a.pic}" alt="">`:''}${esc(a.name)}${a.guess?' <small>(closest match for “'+esc(a.q)+'”)</small>':''}<button class="hits ${a.hits?'on':''}" data-chits="${i}" title="Only keep the 2 or 3 most-played songs from each album">${a.hits?'Big songs only':'All songs'}</button><button class="hits ${a.ep?'on':''}" data-copt="ep" data-i="${i}" title="Include EPs">EPs</button><button class="hits ${a.sg?'on':''}" data-copt="sg" data-i="${i}" title="Include singles that aren't on an album">Singles</button><button class="hits ${a.lv?'on':''}" data-copt="lv" data-i="${i}" title="Include live albums and live recordings">Live</button></span>`).join('')}${(e.missing||[]).map(m=>`<span class="chip bad">Not found: ${esc(m)}</span>`).join('')}</div>
       <label>Albums, one per line<span class="hint">Add just one album instead of a whole discography. Put the artist after a dash if the name is common, like <i>Pet Sounds - The Beach Boys</i>.</span><textarea id="calb" rows="4" placeholder="Pet Sounds - The Beach Boys&#10;Loveless">${esc(e.atext||(e.albums||[]).map(a=>a.title+' - '+a.artist).join('\n'))}</textarea></label>
       <div class="cfound">${(e.albums||[]).map((a,i)=>`<span class="chip">${a.pic?`<img src="${a.pic}" alt="" style="border-radius:3px">`:''}${esc(a.title)} <small>${esc(a.artist)}</small>${a.guess?' <small>(closest match for “'+esc(a.q)+'”)</small>':''}<button class="hits ${a.hits?'on':''}" data-ahits="${i}">${a.hits?'Big songs only':'All songs'}</button></span>`).join('')}${(e.amissing||[]).map(m=>`<span class="chip bad">Album not found: ${esc(m)}</span>`).join('')}</div>
@@ -775,7 +775,7 @@ async function findArtists(text){
   return {artists:out,missing};
 }
 async function findAlbums(text){
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=525')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=525b')).json()}catch(e){AY={}}}
   const lines=[...new Set(text.split(/\n/).map(x=>x.trim()).filter(Boolean))].slice(0,300);const out=[],missing=[];
   const raw=x=>(x||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9()\[\]]+/g,'');
   const OST=/soundtrack|original (motion picture|score|cast)|music from|\bost\b|score\b|tribute|karaoke|in the style of/i;
@@ -835,7 +835,7 @@ function catsHTML(){
     ${isAlbumRounds(catTab)?`<div class="pills decs" style="margin:0 auto 22px;width:max-content"><span class="${catMulti()?'':'on'}" data-catmulti="0">One song per album</span><span class="${catMulti()?'on':''}" data-catmulti="1">Several songs per album</span></div>`:''}
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const m=isAlbumRounds(catTab)&&catMulti();const id='c:'+catTab+':'+c.id+(m?':multi':'');const n=Object.keys(store.get('picks-'+id,{})).length;const r=catRounds(catTab,c,m).length;if(!r)return '';return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${r} rounds</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=525')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=525b')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
