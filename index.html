@@ -295,7 +295,7 @@ document.body.className='th-'+store.get('theme','gold');
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=524b');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=524c');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
   if(g.startsWith('c:custom:')){const id=g.slice(9);const cfg=customs().find(c=>c.id===id);if(!cfg){toast('That custom game no longer exists');return false}
     const built=await ensureBuilt(cfg);if(!built)return false;
@@ -303,7 +303,7 @@ async function setGame(g){
     const raw={};built.rounds.forEach(([yr,songs])=>{const k='C~custom~'+id+'~'+yr;LABELS[k]=yr;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=cfg.name;RAW=raw;YEARS=Object.keys(raw);
     picks=store.get(gk('picks'),{});yi=Math.min(store.get(gk('yi'),0),Math.max(0,YEARS.length-1));dm=null;return true}
-  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=524b')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
+  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=524c')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('That category no longer exists');return false}
     const raw={};catRounds(t,c,multi).forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk+(multi?'~m':'');LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -646,18 +646,19 @@ const REISSUE=/remaster|deluxe|anniversary|expanded|edition|reissue|super|mono|s
 let AY=null;
 // polite request queues: Deezer about 9 a second, MusicBrainz 1 a second
 let dzNext=0;async function dz(u){const now=Date.now();const t=Math.max(now,dzNext);dzNext=t+110;if(t>now)await new Promise(r=>setTimeout(r,t-now));return jsonp(u)}
-let mbNext=0;async function mbGet(u){const now=Date.now();const t=Math.max(now,mbNext);mbNext=t+1050;if(t>now)await new Promise(r=>setTimeout(r,t-now));return (await fetch(u)).json()}
+let mbNext=0;async function mbGet(u){const now=Date.now();const t=Math.max(now,mbNext);mbNext=t+1050;if(t>now)await new Promise(r=>setTimeout(r,t-now));
+  for(let i=0;;i++){const r=await fetch(u);if(r.ok)return r.json();if(i>=3)throw new Error('mb '+r.status);await new Promise(z=>setTimeout(z,1500*(i+1)))}}
 // original release years for a whole artist in two MusicBrainz requests, remembered between builds
 const MBA={};
 function mbArtistYears(name){const k=NZ(name);if(MBA[k])return MBA[k];
-  MBA[k]=(async()=>{const c=store.get('mbb-'+k,null);if(c)return c;const map={},good=new Set(),bad=new Set();
+  MBA[k]=(async()=>{const c=store.get('mbb-'+k,null);if(c)return c;const map={},good=new Set(),bad=new Set();let ok=false;
     try{const j=await mbGet('https://musicbrainz.org/ws/2/artist/?fmt=json&limit=5&query='+encodeURIComponent('artist:"'+name.replace(/"/g,'')+'"'));
       const A=(j.artists||[]).find(x=>NZ(x.name)===k&&x.score>=90)||(j.artists||[])[0];
       if(A&&A.score>=80){for(let off=0;off<300;off+=100){const g=await mbGet('https://musicbrainz.org/ws/2/release-group?fmt=json&limit=100&offset='+off+'&artist='+A.id);
         (g['release-groups']||[]).forEach(r=>{const y=+(r['first-release-date']||'').slice(0,4);const t=NZ(r.title);if(y&&t&&(!map[t]||y<map[t]))map[t]=y;
           if(t){const sec=r['secondary-types']||[];if(sec.some(z=>/compilation|remix|live|soundtrack|dj-mix|mixtape|demo|interview|spokenword/i.test(z)))bad.add(t);else good.add(t)}});
-        if(off+100>=(g['release-group-count']||0))break}}}catch(e){}
-    map['#bad']=[...bad].filter(t=>!good.has(t));try{store.set('mbb-'+k,map)}catch(e){}return map})();
+        if(off+100>=(g['release-group-count']||0))break}ok=true}}catch(e){}
+    map['#bad']=[...bad].filter(t=>!good.has(t));if(ok)try{store.set('mbb-'+k,map)}catch(e){}else delete MBA[k];return map})();
   return MBA[k]}
 const cleanAlb=t=>t.replace(/\s*[\(\[][^\)\]]*(remaster|deluxe|anniversary|expanded|edition|mono|stereo|mix|version)[^\)\]]*[\)\]]/ig,'').trim();
 function yearFor(al,artist){const clean=cleanAlb(al.title);const dy=+(al.release_date||'0').slice(0,4);
@@ -665,7 +666,7 @@ function yearFor(al,artist){const clean=cleanAlb(al.title);const dy=+(al.release
   mbArtistYears(artist);return {y:dy,clean,fix:true,artist}}
 async function buildCustom(cfg,prog){
   const songs=[];let done=0;const albumYear={};const total=cfg.artists.length+(cfg.albums||[]).length;
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=524b')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=524c')).json()}catch(e){AY={}}}
   const isComp=al=>!al||al.type==='compile'||CBADALB.test(al.title);
   const albMeta={},FIXME=[],CACHE=[];
   async function oneArtist(a){
@@ -763,7 +764,7 @@ async function findArtists(text){
   return {artists:out,missing};
 }
 async function findAlbums(text){
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=524b')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=524c')).json()}catch(e){AY={}}}
   const lines=[...new Set(text.split(/\n/).map(x=>x.trim()).filter(Boolean))].slice(0,300);const out=[],missing=[];
   const raw=x=>(x||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9()\[\]]+/g,'');
   const OST=/soundtrack|original (motion picture|score|cast)|music from|\bost\b|score\b|tribute|karaoke|in the style of/i;
@@ -822,7 +823,7 @@ function catsHTML(){
     ${isAlbumRounds(catTab)?`<div class="pills decs" style="margin:0 auto 22px;width:max-content"><span class="${catMulti()?'':'on'}" data-catmulti="0">One song per album</span><span class="${catMulti()?'on':''}" data-catmulti="1">Several songs per album</span></div>`:''}
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const m=isAlbumRounds(catTab)&&catMulti();const id='c:'+catTab+':'+c.id+(m?':multi':'');const n=Object.keys(store.get('picks-'+id,{})).length;const r=catRounds(catTab,c,m).length;if(!r)return '';return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${r} rounds</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=524b')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=524c')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
