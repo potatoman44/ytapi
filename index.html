@@ -293,14 +293,14 @@ document.body.className='th-'+store.get('theme','gold');
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=58b');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=59');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
   if(g.startsWith('c:custom:')){const id=g.slice(9);const cfg=customs().find(c=>c.id===id);if(!cfg){toast('That custom game no longer exists');return false}
     const built=await ensureBuilt(cfg);if(!built)return false;
     const raw={};built.rounds.forEach(([yr,songs])=>{const k='C~custom~'+id+'~'+yr;LABELS[k]=yr;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=cfg.name;RAW=raw;YEARS=Object.keys(raw);
     picks=store.get(gk('picks'),{});yi=Math.min(store.get(gk('yi'),0),Math.max(0,YEARS.length-1));dm=null;return true}
-  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=58b')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
+  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=59')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('That category no longer exists');return false}
     const raw={};catRounds(t,c,multi).forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk+(multi?'~m':'');LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -551,7 +551,7 @@ function menuHTML(){
       ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">Most-rated songs</button>`:''}
       <button class="mbtn" data-go="picks">Your picks<small>${n} of ${YEARS.length}</small></button>
       <button class="mbtn" data-key>YouTube key<small>${YTKEY?'Added':'Optional'}</small></button>
-    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.8, 21 Nov</p></div>`;
+    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.9, 21 Nov</p></div>`;
 }
 /* ---------- sharing ---------- */
 const B36='0123456789abcdefghijklmnopqrstuvwxyz';
@@ -644,8 +644,9 @@ let AY=null;
 async function mbYear(artist,title){try{await new Promise(r=>setTimeout(r,1100));const q='releasegroup:"'+title.replace(/"/g,'')+'" AND artist:"'+artist.replace(/"/g,'')+'"';const j=await (await fetch('https://musicbrainz.org/ws/2/release-group/?fmt=json&limit=3&query='+encodeURIComponent(q))).json();const g=(j['release-groups']||[]).find(x=>x.score>=90&&x['first-release-date']);return g?+g['first-release-date'].slice(0,4):0}catch(e){return 0}}
 async function buildCustom(cfg,prog){
   const songs=[];let done=0;const albumYear={};
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=58b')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=59')).json()}catch(e){AY={}}}
   for(const a of cfg.artists){
+    const cached=store.get('cart-'+a.id,null);if(cached&&cached.v===2){songs.push(...cached.s);prog&&prog(++done,cfg.artists.length,a.name);continue}
     let top=[];try{top=((await jsonp('https://api.deezer.com/artist/'+a.id+'/top?limit=100')).data)||[]}catch(e){}
     const albs=[...new Set(top.map(t=>t.album&&t.album.id).filter(Boolean))].filter(id=>!(id in albumYear));
     for(let i=0;i<albs.length;i+=4){await Promise.all(albs.slice(i,i+4).map(async id=>{try{const al=await jsonp('https://api.deezer.com/album/'+id);if(!al||al.error){albumYear[id]=null;return}const clean=al.title.replace(/\s*[\(\[][^\)\]]*(remaster|deluxe|anniversary|expanded|edition|mono|stereo|mix|version)[^\)\]]*[\)\]]/ig,'').trim();let y=+(al.release_date||'0').slice(0,4);const ay=AY[NZ(a.name)+'|'+NZ(clean)];if(ay)y=ay;else if(REISSUE.test(al.title)){const m=await mbYear(a.name,clean);if(m)y=m}albumYear[id]={y,type:al.record_type,title:clean,cover:al.cover_big||al.cover_medium}}catch(e){albumYear[id]=null}}));await new Promise(r=>setTimeout(r,450))}
@@ -653,7 +654,7 @@ async function buildCustom(cfg,prog){
     top.forEach(t=>{const al=albumYear[t.album&&t.album.id];if(!al||!al.y||!t.preview)return;if(CBAD.test(t.title)||CBADALB.test(al.title)||al.type==='compile')return;
       const k=NZ(t.title);const cur=best[k];
       if(!cur||al.y<cur[7]||(al.y===cur[7]&&t.rank>cur[5]))best[k]=[t.title.replace(/\s+-\s+(\d{4}\s+)?Remaster.*$/i,'').replace(/\s*\((\d{4}\s+)?Remaster[^)]*\)/i,''),a.name,al.title.replace(/\s*\((\d{4}\s+)?Remaster[^)]*\)/i,''),al.cover,null,t.rank,t.id,al.y]});
-    songs.push(...Object.values(best).map(s=>[...s,a.id]));
+    const mine=Object.values(best).map(s=>[...s,a.id]);songs.push(...mine);if(top.length)store.set('cart-'+a.id,{v:2,s:mine});
     prog&&prog(++done,cfg.artists.length,a.name)}
   const rounds=[];
   for(let y=cfg.from;y<=cfg.to;y++){
@@ -685,7 +686,7 @@ function customHTML(){
       <div class="cact"><button class="mbtn" data-cfind>Check artists</button><button class="mbtn primary" data-cbuild>Build and play</button>${editing?`<button class="mbtn" data-ccancel>Cancel</button>`:''}</div></div></div>`;
 }
 async function findArtists(text){
-  const names=[...new Set(text.split(/\n|,(?=\s*[A-Z])/).map(x=>x.trim()).filter(Boolean))].slice(0,40);const out=[],missing=[];
+  const names=[...new Set(text.split(/\n/).map(x=>x.trim()).filter(Boolean))].slice(0,40);const out=[],missing=[];
   for(const q of names){try{const r=await jsonp('https://api.deezer.com/search/artist?limit=8&q='+encodeURIComponent(q));const d=(r.data||[]);
     const exact=d.find(a=>NZ(a.name)===NZ(q));const pick=exact||d[0];if(pick)out.push({id:pick.id,name:pick.name,pic:pick.picture_medium,guess:!exact,q});else missing.push(q)}catch(e){missing.push(q)}}
   return {artists:out,missing};
@@ -720,7 +721,7 @@ function catsHTML(){
     ${isAlbumRounds(catTab)?`<div class="pills decs" style="margin:0 auto 22px;width:max-content"><span class="${catMulti()?'':'on'}" data-catmulti="0">One song per album</span><span class="${catMulti()?'on':''}" data-catmulti="1">Several songs per album</span></div>`:''}
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const m=isAlbumRounds(catTab)&&catMulti();const id='c:'+catTab+':'+c.id+(m?':multi':'');const n=Object.keys(store.get('picks-'+id,{})).length;const r=catRounds(catTab,c,m).length;if(!r)return '';return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${r} rounds</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=58b')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=59')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
