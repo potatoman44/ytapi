@@ -105,6 +105,27 @@ a{color:inherit;text-decoration:none}
 .pct{position:absolute;z-index:3;top:-10px;right:-8px;width:66px;height:66px;border-radius:50%;background:var(--sun);color:var(--ink);display:grid;place-items:center;font-size:26px;font-weight:850;font-stretch:115%;letter-spacing:-.03em;transform:rotate(-9deg);pointer-events:none;box-shadow:0 1px 0 rgba(0,0,0,.25)}
 .res .cv.picked .pct{background:var(--rose)}
 .res .save{display:none}
+/* group games */
+.mpbar{position:fixed;left:50%;transform:translateX(-50%);bottom:76px;z-index:7;display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:min(1000px,calc(100vw - 300px));background:rgba(0,0,0,.86);border:1px solid var(--faint);border-radius:14px;padding:8px 14px;font-size:14px}
+.mpbar .cbtn{padding:5px 12px;font-size:14px}.mpbar .cbtn small{opacity:.7;margin-left:4px}
+.code{font-weight:850;font-stretch:125%;letter-spacing:.14em;color:var(--sun)}
+.mpbig{margin:10px auto 26px;font-size:18px;color:var(--soft)}.mpbig .code{display:block;font-size:min(24vw,150px);line-height:1;margin:14px 0 10px}.mpbig small{display:block;font-size:14px}.mpbig a{color:var(--white)}
+.mpwho{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}.mpwho span{padding:3px 10px;border-radius:999px;border:1px solid var(--faint);color:var(--soft)}.mpwho span.on{background:var(--sun);border-color:var(--sun);color:#000}
+.mpwho.big span{font-size:18px;padding:6px 16px}.mph{margin:26px 0 12px;font-size:20px}
+.mpform{border:0;padding:0;max-width:420px;margin:0 auto 10px}.mpform .codein{font-size:34px;font-weight:850;letter-spacing:.3em;text-transform:uppercase;text-align:center}
+.mpact{justify-content:center;margin-top:24px}.mpme{font-size:13px;color:var(--faint);margin-bottom:10px}
+.save.on{background:var(--sun);border-color:var(--sun);color:#000}
+.card.out{opacity:.16!important}.card.out .save{visibility:hidden}
+.sub.mptbh,.mptb{color:var(--rose);font-weight:750;font-size:18px;margin-top:4px}
+.mpsongs{display:flex;flex-direction:column;gap:10px;max-width:560px;margin:0 auto;text-align:left}
+.mpsong{display:flex;align-items:center;gap:12px;border:1.5px solid var(--faint);border-radius:12px;padding:8px;width:100%;text-align:left;color:inherit;background:none}
+.mpsong img{width:64px;height:64px;border-radius:6px;object-fit:cover;flex:none}
+.mpsong>span:last-child{display:flex;flex-direction:column;min-width:0}.mpsong .t{font-weight:700;font-size:17px}.mpsong .a{font-size:14px;color:var(--soft)}.mpsong .who{font-size:12px;color:var(--faint);margin-top:2px}
+.mpsong.on{border-color:var(--sun);background:rgba(255,196,0,.13)}.mpsong.win{border-color:var(--rose);background:rgba(220,40,60,.12)}
+.mpsong .v{font-weight:850;font-size:20px;color:var(--sun);min-width:56px;text-align:center}.mpsong[disabled]{opacity:1;cursor:default}
+.mpy{font-size:clamp(40px,12vw,84px)}.mpsort{margin:0 auto 26px}
+.pk .cv{position:relative}
+@media (max-width:760px){.mpbar{max-width:calc(100vw - 20px);bottom:112px;font-size:12px}}
 /* bottom bar */
 .prev{position:fixed;left:16px;bottom:30px;border:1.5px solid var(--white);border-radius:999px;padding:8px 16px;font-size:15px;font-weight:600;white-space:nowrap;z-index:6;background:var(--blue)}
 .prev:hover{background:var(--white);color:var(--blue)}
@@ -295,7 +316,7 @@ document.body.className='th-'+store.get('theme','gold');
 let picks=store.get('picks',{}), fast=store.get('fast',false), muted=store.get('muted',false), seenTip=store.get('tip',false);
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 let view='menu', yi=0, revealed=0, phase='reveal', playing=null, revealTimer=null, resultsFor=null;
-async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=531');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
+async function loadMonths(){if(MONTHS)return MONTHS;const r=await fetch('months.json?v=540');MONTHS=await r.json();addSongs(MONTHS);applyFound();return MONTHS}
 async function setGame(g){
   if(g.startsWith('c:custom:')){const id=g.slice(9);const cfg=customs().find(c=>c.id===id);if(!cfg){toast('That custom game no longer exists');return false}
     const built=await ensureBuilt(cfg);if(!built)return false;
@@ -303,7 +324,7 @@ async function setGame(g){
     const raw={};built.rounds.forEach(([yr,songs])=>{const k='C~custom~'+id+'~'+yr;LABELS[k]=yr;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=cfg.name;RAW=raw;YEARS=Object.keys(raw);
     picks=store.get(gk('picks'),{});yi=Math.min(store.get(gk('yi'),0),Math.max(0,YEARS.length-1));dm=null;return true}
-  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=531')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
+  if(g.startsWith('c:')){const [,t,id,mm]=g.split(':');const multi=mm==='multi';try{if(!CATDATA[t])CATDATA[t]=await (await fetch('cat-'+t+'.json?v=540')).json()}catch(e){toast('Couldn’t load this category. Check your connection and try again.');return false}
     const c=CATDATA[t].find(x=>x.id===id);if(!c){toast('That category no longer exists');return false}
     const raw={};catRounds(t,c,multi).forEach(([rk,lab,songs])=>{const k='C~'+t+'~'+id+'~'+rk+(multi?'~m':'');LABELS[k]=lab;raw[k]=songs});addSongs(raw);applyFound();
     store.set(gk('yi'),yi);GAME=g;store.set('game',g);CATNAME=c.name;RAW=raw;YEARS=Object.keys(raw);
@@ -536,6 +557,11 @@ function render(){
   else if(view==='cats')app.innerHTML=catsHTML();
   else if(view==='custom')app.innerHTML=customHTML();
   else if(view==='shared')app.innerHTML=sharedHTML();
+  else if(view==='mplobby'&&MP)app.innerHTML=mplobbyHTML();
+  else if(view==='mpjoin')app.innerHTML=mpjoinHTML();
+  else if(view==='mpguest'&&MP)app.innerHTML=mpguestHTML();
+  else if(view==='mpdone'&&MP)app.innerHTML=mpdoneHTML();
+  else if(/^mp/.test(view)){view='menu';app.innerHTML=menuHTML()}
   bind();
 }
 function menuHTML(){
@@ -547,14 +573,16 @@ function menuHTML(){
     <h1 class="gold-title">Save one song</h1>
     <p class="tag">${KIND()==='year'?'One song from every year of AOTY users’ favourite tracks.':KIND()==='month'?'One song from every month of the '+GAME+'.':esc(CATNAME)+'. One song from every round.'}</p>
     <div class="mbtns">
+      ${MP?`<button class="mbtn primary" data-mpback>Back to the group game</button><button class="mbtn" data-mpend>${isHost()?'End the group game':'Leave the group game'}</button>`:''}
       ${cont?`<button class="mbtn primary" data-go="continue">Continue</button>`:''}
       <button class="mbtn ${cont?'':'primary'}" data-go="new">New game</button>
       <button class="mbtn" data-go="dm">Deathmatch</button>
       <button class="mbtn" data-go="years">Skip to a ${UNIT()}</button>
       ${KIND()!=='cat'?`<button class="mbtn" data-go="rank">Most-rated songs</button>`:''}
       <button class="mbtn" data-go="picks">Your picks<small>${n} of ${YEARS.length}</small></button>
+      ${MP?'':`<button class="mbtn" data-mphost>Play with friends<small>Everyone votes</small></button><button class="mbtn" data-go="mpjoin">Join a game</button>`}
       <button class="mbtn" data-key>YouTube key<small>${YTKEY?'Added':'Optional'}</small></button>
-    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.31, 21 Nov</p></div>`;
+    </div><div class="pills decs" style="margin-top:22px"><span class="${store.get('theme','gold')==='gold'?'on':''}" data-theme="gold">Black and gold</span><span class="${store.get('theme','gold')==='blue'?'on':''}" data-theme="blue">Blue</span></div><p class="ver">Version 5.40, 22 Nov</p></div>`;
 }
 /* ---------- sharing ---------- */
 const B36='0123456789abcdefghijklmnopqrstuvwxyz';
@@ -678,7 +706,7 @@ function yearFor(al,artist){const clean=cleanAlb(al.title);const dy=+(al.release
   mbArtistYears(artist);return {y:dy,clean,fix:true,artist}}
 async function buildCustom(cfg,prog){
   const songs=[];let done=0;const albumYear={};const total=cfg.artists.length+(cfg.albums||[]).length;
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=531')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=540')).json()}catch(e){AY={}}}
   const isComp=al=>!al||al.type==='compile'||CBADALB.test(al.title);
   const albMeta={},FIXME=[],CACHE=[];
   async function oneArtist(a){
@@ -805,7 +833,7 @@ async function findArtists(text){
   return {artists:out,missing};
 }
 async function findAlbums(text){
-  if(!AY){try{AY=await (await fetch('albumyears.json?v=531')).json()}catch(e){AY={}}}
+  if(!AY){try{AY=await (await fetch('albumyears.json?v=540')).json()}catch(e){AY={}}}
   const lines=[...new Set(text.split(/\n/).map(x=>x.trim()).filter(Boolean))].slice(0,300);const out=[],missing=[];
   const raw=x=>(x||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9()\[\]]+/g,'');
   const OST=/soundtrack|original (motion picture|score|cast)|music from|\bost\b|score\b|tribute|karaoke|in the style of/i;
@@ -865,20 +893,22 @@ function catsHTML(){
     ${isAlbumRounds(catTab)?`<div class="pills decs" style="margin:0 auto 22px;width:max-content"><span class="${catMulti()?'':'on'}" data-catmulti="0">One song per album</span><span class="${catMulti()?'on':''}" data-catmulti="1">Several songs per album</span></div>`:''}
     ${list?`<div class="ygrid cgrid">${list.map(c=>{const m=isAlbumRounds(catTab)&&catMulti();const id='c:'+catTab+':'+c.id+(m?':multi':'');const n=Object.keys(store.get('picks-'+id,{})).length;const r=catRounds(catTab,c,m).length;if(!r)return '';return `<button class="${GAME===id?'done':''}" data-game="${id}">${esc(c.name)}<small>${n?n+' / ':''}${r} rounds</small></button>`}).join('')}</div>`:`<p class="lead">LOADING…</p>`}</div>`;
 }
-async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=531')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
+async function openCats(t){catTab=t||catTab;view='cats';render();if(!CATDATA[catTab]){try{CATDATA[catTab]=await (await fetch('cat-'+catTab+'.json?v=540')).json()}catch(e){toast('COULD NOT LOAD CATEGORY DATA')}if(view==='cats')render()}}
 function chrome(){return `<button class="close" data-go="menu" aria-label="Close">✕</button>`}
 function gameHTML(){
   const y=YEARS[yi], res=phase==='results';
-  const pickedId=picks[y]!=null?y+'-'+picks[y]:null;
+  const G=isHost()&&MP.started&&!MP.done&&MP.round, MR=G&&MP.res[y];
+  const pickedId=G?(MR?y+'-'+MR.win:null):picks[y]!=null?y+'-'+picks[y]:null;
   const cards=RAW[y].map((_,i)=>{const s=SONGS[y+'-'+i];const shown=fast||res||i<revealed;
-    const pct=res&&s.sc!=null?`<div class="pct" title="AOTY user score">${s.sc}</div>`:'';
-    return `<div class="card ${shown?'in':''}" data-i="${i}">${coverEl(s,pct).replace('class="cv"',`class="cv ${pickedId===s.id&&res?'picked':''}"`)}
-      <div class="info"><div class="t" title="${esc(s.t)}">${esc(s.t)}</div><div class="a" title="${esc(s.a)}">${esc(s.a)}</div>${res&&s.n?`<div class="n">${s.n.toLocaleString()} ratings</div>`:''}<button class="save" data-save="${i}">Save</button></div></div>`}).join('');
+    const out=G&&MP.round.only&&!MP.round.only.includes(i), mine=G&&MP.votes['#host']===i;
+    const pct=G?(res&&MR&&i in MR.last.cnt?`<div class="pct" title="Share of the votes">${Math.round(100*MR.last.cnt[i]/MR.last.total)}%</div>`:''):res&&s.sc!=null?`<div class="pct" title="AOTY user score">${s.sc}</div>`:'';
+    return `<div class="card ${shown?'in':''} ${out?'out':''}" data-i="${i}">${coverEl(s,pct).replace('class="cv"',`class="cv ${pickedId===s.id&&res?'picked':''}"`)}
+      <div class="info"><div class="t" title="${esc(s.t)}">${esc(s.t)}</div><div class="a" title="${esc(s.a)}">${esc(s.a)}</div>${G?(res&&MR&&MR.last.who[i]?`<div class="n">${MR.last.who[i].map(esc).join(', ')}</div>`:''):res&&s.n?`<div class="n">${s.n.toLocaleString()} ratings</div>`:''}<button class="save ${mine?'on':''}" data-save="${i}">${G?(mine?'Your vote':'Vote'):'Save'}</button></div></div>`}).join('');
   return `<div class="fast ${fast?'on':''}" data-fast><div class="tog"></div>Fast mode</div>
     ${chrome()}
-    <div class="top"><div>${res?`<div class="year gold-title rs">${KIND()==='cat'&&GAME.startsWith('c:custom:')?'Your pick':'AOTY scores'}</div><div class="sub">Click anywhere to continue</div>`:`<div class="year gold-title ${isMonthKey(y)?'mon':''} ${isCatKey(y)?(label(y).length>22?'cat long':'cat'):''}">${esc(label(y))}</div>`}</div></div>
+    <div class="top"><div>${res?`<div class="year gold-title rs">${G?'The group’s pick':KIND()==='cat'&&GAME.startsWith('c:custom:')?'Your pick':'AOTY scores'}</div><div class="sub">${G&&MR&&MR.coin?'Tied again, so a coin toss decided. ':G&&MR&&MR.tb?'Won the tiebreaker. ':''}Click anywhere to continue</div>`:G&&MP.round.tb?`<div class="year gold-title ${isMonthKey(y)?'mon':''} ${isCatKey(y)?(label(y).length>22?'cat long':'cat'):''}">${esc(label(y))}</div><div class="sub mptbh">Tiebreaker${MP.round.tb>1?' '+MP.round.tb:''}: vote again</div>`:`<div class="year gold-title ${isMonthKey(y)?'mon':''} ${isCatKey(y)?(label(y).length>22?'cat long':'cat'):''}">${esc(label(y))}</div>`}</div></div>
     <div class="stage ${res?'res':''}" id="stage"><div class="grid">${cards}</div></div>
-    ${phase==='reveal'&&!fast&&!res?`<div class="skipbar"><button data-skip>Skip</button><button data-skipall>Skip all</button></div>`:''}<div class="credit">${GAME.startsWith('c:custom:')?esc(CATNAME)+'. Songs and previews from Deezer, most-played first':KIND()==='cat'?esc(CATNAME)+' on Album of the Year':'Songs with '+(GAME==='year'?(y<2000?'200':'500'):'100')+'+ ratings on Album of the Year'+(KIND()==='month'?', sorted by album release date':'')}. Previews from Deezer.</div><button class="prev" data-prev ${yi===0?'disabled':''}>← <span class="long">Previous ${UNIT()}</span></button>
+    ${phase==='reveal'&&!fast&&!res?`<div class="skipbar"><button data-skip>Skip</button><button data-skipall>Skip all</button></div>`:''}<div class="credit">${GAME.startsWith('c:custom:')?esc(CATNAME)+'. Songs and previews from Deezer, most-played first':KIND()==='cat'?esc(CATNAME)+' on Album of the Year':'Songs with '+(GAME==='year'?(y<2000?'200':'500'):'100')+'+ ratings on Album of the Year'+(KIND()==='month'?', sorted by album release date':'')}. Previews from Deezer.</div>${G?`<div class="mpbar" id="mpbar">${mpBarInner()}</div>`:''}<button class="prev" data-prev ${yi===0||G?'disabled':''} ${G?'hidden':''}>← <span class="long">Previous ${UNIT()}</span></button>
     <div class="mute"><button data-mute>${muted?'Unmute':'Mute'}</button><button class="ic" data-mute>${muted?ICON.spkoff:ICON.spk}</button></div>
     ${!seenTip?`<div class="modal" data-tip><div class="mbox"><h2 class="gold-title">How to play</h2><p>${TOUCH?'Each song plays a short preview as its cover appears. Tap <b>Skip</b> to move on, or <b>Skip all</b> to see every cover.<br>Tap a cover to play or pause it, then hit <b>Save</b> on the one you’d keep.':'Each song plays a short preview as its cover appears. Click anywhere or press <b>Skip</b> to move on, or hold the mouse button to skip silently.<br>Click a cover to play or pause it, then hit <b>Save</b> on the one you’d keep. Space pauses.'}</p><button class="mbtn primary" style="width:auto;padding:10px 30px">Got it</button></div></div>`:''}`;
 }
@@ -924,30 +954,187 @@ function dmRankHTML(){
    ${list.length?`<div class="picks">${list.map(id=>{const s=SONGS[id];return `<div class="pk">${coverEl(s)}<div class="y">${c[id]} win${c[id]>1?'s':''}</div><div class="t">${esc(s.t)}</div><div class="a">${esc(s.a)}, ${esc(String(s.y))}</div></div>`}).join('')}</div>`:'<p class="lead">No winners yet. Finish a Deathmatch to see them here.</p>'}</div>`;
 }
 
+/* ---------- multiplayer: one host screen, everyone votes from their own device ---------- */
+// The host's browser is the game server: players connect straight to it with WebRTC (PeerJS), using the code as its address.
+let MP=null;
+const PEERJS='https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+function loadPeer(){return window.Peer?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src=PEERJS;s.onload=res;s.onerror=()=>rej(new Error('peerjs'));document.head.appendChild(s)})}
+const CODECH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const newCode=()=>Array.from({length:4},()=>CODECH[Math.floor(Math.random()*CODECH.length)]).join('');
+const PID=c=>'save-one-song-'+String(c).toLowerCase();
+const joinURL=()=>location.origin+location.pathname+'?join='+MP.code;
+const isHost=()=>MP&&MP.role==='host';
+async function mpHost(){
+  try{await loadPeer()}catch(e){toast('Couldn’t load the connection library. Check your internet and try again.');return}
+  toast('Setting up the game…');
+  const open=code=>new Promise((res,rej)=>{const p=new Peer(PID(code));p.on('open',()=>res(p));p.on('error',e=>{p.destroy();rej(e)})});
+  let peer=null,code=null;
+  for(let i=0;i<5&&!peer;i++){code=newCode();try{peer=await open(code)}catch(e){if(e.type!=='unavailable-id'){toast('Couldn’t start the game ('+(e.type||'network')+'). Try again.');return}}}
+  if(!peer){toast('Couldn’t get a game code. Try again.');return}
+  MP={role:'host',code,peer,players:{},name:store.get('mpname','')||'Host',votes:{},round:null,res:{},started:false,done:false,sort:'year'};
+  peer.on('connection',c=>{c.on('data',d=>mpHostMsg(c,d));c.on('close',()=>{const p=c.mpk&&MP&&MP.players[c.mpk];if(p&&p.conn===c){p.on=false;mpRefresh();mpCheck()}})});
+  peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
+  peer.on('error',e=>{if(e.type!=='peer-unavailable')toast('Connection problem: '+(e.type||'unknown'))});
+  view='mplobby';render();
+}
+function mpHostMsg(c,d){
+  if(!isHost()||!d)return;
+  if(d.t==='hello'){
+    let name=String(d.name||'').trim().replace(/\s+/g,' ').slice(0,20)||'Player';let k=name.toLowerCase();
+    if(k===MP.name.toLowerCase()||(MP.players[k]&&MP.players[k].on&&MP.players[k].conn!==c)){let n=2;while(MP.players[(name+' '+n).toLowerCase()]&&MP.players[(name+' '+n).toLowerCase()].on)n++;name=name+' '+n;k=name.toLowerCase()}
+    const back=!!MP.players[k];MP.players[k]={name,conn:c,on:true};c.mpk=k;toast(name+(back?' is back':' joined'));mpRefresh();return}
+  const k=c.mpk;if(!k||!MP.players[k])return;
+  if(d.t==='vote'&&MP.started&&!MP.done&&view==='game'&&phase!=='results'&&d.rk===mpRK()&&mpOpts().includes(d.i)){MP.votes[k]=d.i;mpRefresh();mpCheck()}
+}
+const mpRK=()=>MP&&MP.round?MP.round.y+'#'+MP.round.tb:'';
+const mpOpts=()=>MP.round&&MP.round.only?MP.round.only:RAW[YEARS[yi]].map((_,i)=>i);
+function mpVoters(){return [{k:'#host',name:MP.name},...Object.entries(MP.players).filter(([k,p])=>p.on).map(([k,p])=>({k,name:p.name}))].map(p=>({...p,voted:MP.votes[p.k]!=null}))}
+const mpName=k=>k==='#host'?MP.name:(MP.players[k]||{}).name||k;
+function mpNewRound(){if(!isHost()||!MP.started)return;MP.round={y:YEARS[yi],only:null,tb:0,first:null};MP.votes={};mpBroadcast()}
+function mpVote(i){if(!mpOpts().includes(i))return;MP.votes['#host']=i;mpRefresh();mpCheck()}
+// everyone has voted: close the round, but only once the host has heard every song
+function mpCheck(){if(!isHost()||!MP.started||MP.done||view!=='game'||phase==='results'||(phase==='reveal'&&!fast))return;
+  if(mpVoters().every(p=>p.voted)){clearTimeout(mpCheck.t);mpCheck.t=setTimeout(()=>{if(phase!=='results'&&mpVoters().every(p=>p.voted))mpClose()},800)}}
+function mpClose(){
+  const y=YEARS[yi],R=MP.round,opts=mpOpts();const cnt={};opts.forEach(i=>cnt[i]=0);
+  Object.values(MP.votes).forEach(i=>{if(i in cnt)cnt[i]++});
+  const total=Object.values(cnt).reduce((a,b)=>a+b,0);if(!total){toast('Nobody has voted yet');return}
+  const who={};Object.entries(MP.votes).forEach(([k,i])=>{if(i in cnt)(who[i]=who[i]||[]).push(mpName(k))});
+  if(!R.first)R.first={cnt,total,who};
+  const max=Math.max(...Object.values(cnt));const top=opts.filter(i=>cnt[i]===max);
+  if(top.length>1&&R.tb<2){   // a tie: vote again between just those songs (twice at most, then a coin toss)
+    R.only=top;R.tb++;MP.votes={};clearTimeout(revealTimer);if(phase==='reveal'){revealed=RAW[y].length;phase='choose'}
+    render();mpBroadcast();toast(R.tb===1?'It’s a tie! Tiebreaker time':'Another tie! One more tiebreaker');return}
+  const win=top[Math.floor(Math.random()*top.length)];
+  MP.res[y]={win,cnt:R.first.cnt,total:R.first.total,pct:Math.round(100*R.first.cnt[win]/R.first.total),tb:R.tb,coin:top.length>1,last:{cnt,total,who}};
+  clearTimeout(revealTimer);hideSkip();phase='results';resultsFor=y;render();mpBroadcast();
+  const id=y+'-'+win;if(playing===id&&!isPaused())markPlaying();else play(id);
+}
+function mpFinish(){MP.done=true;stopAudio();view='mpdone';render();mpBroadcast()}
+function mpFinal(){return YEARS.filter(y=>MP.res[y]).map((y,n)=>{const r=MP.res[y],s=SONGS[y+'-'+r.win];return {n,k:shortLabel(y),t:s.t,a:s.a,img:COVER(s),pct:r.pct,v:r.cnt[r.win],of:r.total,tb:r.tb,coin:r.coin}})}
+function mpStateFor(k){
+  const vs=mpVoters();const base={t:'state',code:MP.code,host:MP.name,players:vs.map(p=>p.name),me:k&&MP.players[k]?MP.players[k].name:''};
+  if(MP.done)return {...base,phase:'done',final:mpFinal()};
+  if(!MP.started||view!=='game'||!MP.round)return {...base,phase:'lobby',started:MP.started};
+  const y=YEARS[yi];const songs=RAW[y].map((_,i)=>{const s=SONGS[y+'-'+i];return {i,t:s.t,a:s.a,img:COVER(s)}});
+  if(phase==='results'&&MP.res[y]){const r=MP.res[y];return {...base,phase:'results',label:label(y),songs,res:{win:r.win,pct:r.pct,tb:r.tb,coin:r.coin,cnt:r.last.cnt,total:r.last.total,who:r.last.who}}}
+  return {...base,phase:'vote',label:label(y),rk:mpRK(),songs,only:MP.round.only,tb:MP.round.tb,mine:MP.votes[k],voted:vs.filter(p=>p.voted).length,of:vs.length};
+}
+function mpBroadcast(){if(!isHost())return;Object.entries(MP.players).forEach(([k,p])=>{if(p.on&&p.conn.open){try{p.conn.send(mpStateFor(k))}catch(e){}}})}
+function mpRefresh(){if(!isHost())return;if(view==='mplobby')render();else if(view==='game')mpPaint();mpBroadcast()}
+// update the voting bar and vote buttons in place, so the song reveal isn't interrupted
+function mpPaint(){const b=$('#mpbar');if(b){b.innerHTML=mpBarInner();bindMpBar()}
+  document.querySelectorAll('[data-save]').forEach(x=>{const on=MP.votes['#host']===+x.dataset.save;x.classList.toggle('on',on);x.textContent=on?'Your vote':'Vote'})}
+function mpBarInner(){const vs=mpVoters(),n=vs.filter(p=>p.voted).length,open=phase!=='results';
+  return `<div class="mpcode">Join at <b>${esc(location.host)}</b> with code <b class="code">${MP.code}</b></div>
+    <div class="mpwho">${vs.map(p=>`<span class="${p.voted&&open?'on':''}">${esc(p.name)}</span>`).join('')}</div>
+    ${open?`<button class="cbtn" data-mpclose>Close voting <small>${n} of ${vs.length}</small></button>`:''}<button class="cbtn" data-mpfinish>Finish</button>`}
+function bindMpBar(){const c=$('[data-mpclose]');if(c)c.onclick=e=>{e.stopPropagation();if(phase==='reveal'&&!fast)revealAll(false);mpClose()};
+  const f=$('[data-mpfinish]');if(f)f.onclick=e=>{e.stopPropagation();if(f.dataset.armed){mpFinish();return}f.dataset.armed=1;f.textContent='Click again to finish';setTimeout(()=>{if(f.isConnected){delete f.dataset.armed;f.textContent='Finish'}},2500)}}
+function mpEnd(){if(MP){try{MP.peer.destroy()}catch(e){}}MP=null;stopAudio();view='menu';render()}
+function mplobbyHTML(){
+  const vs=mpVoters();
+  return `${chrome()}<div class="page mp"><h1 class="gold-title">Play with friends</h1>
+    <p class="lead">Everyone votes from their phone or laptop for the song to save. Most votes wins, and a tie goes to a tiebreaker. Previews play on this screen.</p>
+    <div class="mpbig">Go to <b>${esc(location.host)}</b>, choose <b>Join a game</b> and enter<div class="code">${MP.code}</div><small>or open <a href="${joinURL()}" target="_blank">${esc(joinURL().replace(/^https?:\/\//,''))}</a></small></div>
+    <div class="cform mpform"><label>Your name<input id="mpname" value="${esc(store.get('mpname',''))}" placeholder="Host" maxlength="20"></label></div>
+    <h3 class="mph">Players: ${vs.length}</h3><div class="mpwho big">${vs.map(p=>`<span class="on">${esc(p.name)}</span>`).join('')}</div>
+    <p class="lead">You’ll play <b>${esc(modeTitle())}</b>. To play something else, change it on the main menu first.</p>
+    <div class="cact mpact"><button class="mbtn primary" data-mpstart>Start</button><button class="mbtn" data-mpend>Cancel</button></div></div>`;
+}
+function mpjoinHTML(){
+  return `${chrome()}<div class="page mp"><h1 class="gold-title">Join a game</h1><p class="lead">Enter the code on the host’s screen.</p>
+    <div class="cform mpform"><label>Code<input id="mpcode" class="codein" maxlength="4" autocomplete="off" autocapitalize="characters" value="${esc(mpjoinHTML.code||'')}"></label>
+    <label>Your name<input id="mpuser" maxlength="20" value="${esc(store.get('mpname',''))}" placeholder="Name"></label>
+    <button class="mbtn primary" data-mpjoin>Join</button></div></div>`;
+}
+async function mpJoin(code,name){
+  code=code.toUpperCase().replace(/[^A-Z0-9]/g,'');if(code.length!==4){toast('The code has 4 letters and numbers');return}
+  name=name.trim().slice(0,20);if(!name){toast('Add a name so people know who you are');return}
+  store.set('mpname',name);
+  try{await loadPeer()}catch(e){toast('Couldn’t load the connection library. Check your internet and try again.');return}
+  if(MP)mpEnd();
+  const b=$('[data-mpjoin]');if(b)b.textContent='Joining…';
+  const peer=new Peer();
+  MP={role:'guest',code,peer,conn:null,name,state:null,sort:'year'};
+  const fail=m=>{if(!MP||MP.peer!==peer)return;toast(m);try{peer.destroy()}catch(e){}MP=null;mpjoinHTML.code=code;view='mpjoin';render()};
+  const to=setTimeout(()=>{if(MP&&MP.peer===peer&&!MP.state)fail('No game found with code '+code)},12000);
+  peer.on('error',e=>{if(MP&&MP.state&&e.type!=='peer-unavailable'){MP.lost=true;render();return}fail(e.type==='peer-unavailable'?'No game found with code '+code:'Couldn’t connect ('+(e.type||'network')+')')});
+  peer.on('open',()=>{const c=peer.connect(PID(code),{reliable:true});MP.conn=c;
+    c.on('open',()=>c.send({t:'hello',name}));
+    c.on('data',d=>{if(!MP||MP.conn!==c||!d||d.t!=='state')return;clearTimeout(to);const first=!MP.state;MP.state=d;MP.lost=false;if(d.me)MP.name=d.me;if(first||view==='mpguest'||view==='mpjoin'){view='mpguest';render()}});
+    c.on('close',()=>{if(MP&&MP.conn===c){MP.lost=true;if(view==='mpguest')render()}})});
+}
+function mpGuestVote(i){const s=MP.state;if(!s||s.phase!=='vote'||(s.only&&!s.only.includes(i)))return;MP.conn.send({t:'vote',i,rk:s.rk});s.mine=i;render()}
+function mpListHTML(final,sort){
+  const L=[...final];if(sort==='pct')L.sort((a,b)=>b.pct-a.pct||b.v-a.v||a.n-b.n);
+  return `<div class="pills decs mpsort"><span class="${sort==='year'?'on':''}" data-mpsort="year">In order</span><span class="${sort==='pct'?'on':''}" data-mpsort="pct">Most votes first</span></div>
+    <div class="picks">${L.map(x=>`<div class="pk"><div class="cv"><img referrerpolicy="no-referrer" src="${esc(x.img)}" alt=""><div class="pct">${x.pct}%</div></div><div class="y">${esc(x.k)}</div><div class="t">${esc(x.t)}</div><div class="a">${esc(x.a)}</div><div class="a">${x.v} of ${x.of} vote${x.of===1?'':'s'}${x.coin?', coin toss':x.tb?', won a tiebreaker':''}</div></div>`).join('')}</div>`;
+}
+function mpdoneHTML(){
+  const F=mpFinal();
+  return `${chrome()}<div class="page"><h1 class="gold-title">The group’s picks</h1><p class="lead">${F.length} ${UNIT()}${F.length===1?'':'s'} saved by ${mpVoters().length} voter${mpVoters().length===1?'':'s'}. The percentage is the share of votes the saved song got.</p>
+    ${F.length?mpListHTML(F,MP.sort):''}</div>
+    <div class="corner">${F.length?`<button class="cbtn" data-mpcopy>Copy list</button>`:''}<button class="cbtn hot" data-mpagain>Play again</button><button class="cbtn" data-mpend>End</button></div>`;
+}
+function mpguestHTML(){
+  const s=MP&&MP.state;
+  if(!s)return `${chrome()}<div class="page"><h1 class="gold-title">Joining…</h1></div>`;
+  if(MP.lost)return `${chrome()}<div class="page mp"><h1 class="gold-title">Connection lost</h1><p class="lead">You’ve been disconnected from ${esc(s.host)}’s game.</p><div class="cact mpact"><button class="mbtn primary" data-mprejoin>Rejoin</button><button class="mbtn" data-mpend>Leave</button></div></div>`;
+  const head=`<div class="mpme">${esc(MP.name)} in ${esc(s.host)}’s game, code ${esc(s.code)}</div>`;
+  if(s.phase==='lobby')return `${chrome()}<div class="page mp">${head}<h1 class="gold-title">You’re in</h1><p class="lead">${s.started?'The next round is about to start.':'Waiting for '+esc(s.host)+' to start the game.'}</p><div class="mpwho big">${s.players.map(n=>`<span class="on">${esc(n)}</span>`).join('')}</div></div>`;
+  if(s.phase==='done')return `${chrome()}<div class="page">${head}<h1 class="gold-title">The group’s picks</h1><p class="lead">The percentage is the share of votes the saved song got.</p>${mpListHTML(s.final,MP.sort)}</div>`;
+  const row=(x,o={})=>`<button class="mpsong ${o.cls||''}" data-mpv="${x.i}" ${o.off?'disabled':''}><img referrerpolicy="no-referrer" src="${esc(x.img)}" alt="">${o.pct!=null?`<span class="v">${o.pct}%</span>`:''}<span><span class="t">${esc(x.t)}</span><span class="a">${esc(x.a)}</span>${o.who?`<span class="who">${o.who}</span>`:''}</span></button>`;
+  if(s.phase==='results'){const r=s.res,w=s.songs[r.win];
+    return `${chrome()}<div class="page mp">${head}<h1 class="gold-title mpy">${esc(s.label)}</h1><p class="lead">The group saved <b>${esc(w.t)}</b> with ${r.pct}% of the votes${r.coin?' (after a coin toss)':r.tb?' (after a tiebreaker)':''}.</p>
+      <div class="mpsongs">${s.songs.filter(x=>x.i in r.cnt).sort((a,b)=>r.cnt[b.i]-r.cnt[a.i]).map(x=>row(x,{cls:x.i===r.win?'win':'',off:1,pct:Math.round(100*r.cnt[x.i]/r.total),who:(r.who[x.i]||[]).map(esc).join(', ')})).join('')}</div></div>`}
+  return `${chrome()}<div class="page mp">${head}<h1 class="gold-title mpy">${esc(s.label)}</h1>${s.tb?`<div class="mptb">Tiebreaker${s.tb>1?' ('+s.tb+')':''}</div>`:''}
+    <p class="lead">${s.mine!=null?'Vote in. You can change it until voting closes.':'Tap the song you’d save.'} ${s.voted} of ${s.of} voted.</p>
+    <div class="mpsongs">${s.songs.filter(x=>!s.only||s.only.includes(x.i)).map(x=>row(x,{cls:s.mine===x.i?'on':''})).join('')}</div></div>`;
+}
+function bindMp(){
+  const on=(sel,f)=>document.querySelectorAll(sel).forEach(b=>b.onclick=e=>{e.stopPropagation();f(b,e)});
+  on('[data-mphost]',()=>mpHost());
+  on('[data-mpend]',()=>mpEnd());
+  on('[data-mpback]',()=>{if(!MP)return;if(MP.role==='guest')view='mpguest';else view=MP.done?'mpdone':MP.started?'game':'mplobby';render()});
+  const nm=$('#mpname');if(nm)nm.oninput=()=>{const v=nm.value.trim().slice(0,20);store.set('mpname',v);if(isHost()){MP.name=v||'Host';mpBroadcast();const w=$('.mpwho.big span');if(w)w.textContent=MP.name}};
+  on('[data-mpstart]',()=>{MP.started=true;MP.done=false;MP.res={};enterYear(0)});
+  on('[data-mpjoin]',()=>mpJoin($('#mpcode').value,$('#mpuser').value));
+  const ci=$('#mpcode');if(ci){ci.oninput=()=>{ci.value=ci.value.toUpperCase().replace(/[^A-Z0-9]/g,'')};ci.onkeydown=$('#mpuser').onkeydown=e=>{if(e.key==='Enter')$('[data-mpjoin]').click()}}
+  on('[data-mprejoin]',()=>{const c=MP.code,n=MP.name;mpJoin(c,n)});
+  on('[data-mpv]',b=>mpGuestVote(+b.dataset.mpv));
+  on('[data-mpsort]',b=>{MP.sort=b.dataset.mpsort;render()});
+  on('[data-mpagain]',()=>{MP.done=false;MP.res={};enterYear(0)});
+  on('[data-mpcopy]',async()=>{const lines=['Our Save One Song picks ('+modeTitle().toLowerCase()+')'];mpFinal().forEach(x=>lines.push(`${x.k}  ${x.t} — ${x.a}  (${x.pct}%)`));try{await navigator.clipboard.writeText(lines.join('\n'));toast('List copied')}catch(e){toast('Your browser blocked copying')}});
+  bindMpBar();
+}
+
 /* ---------- game flow ---------- */
 function enterYear(i){
   yi=Math.max(0,Math.min(YEARS.length-1,i));revealed=0;phase='reveal';stopAudio();view='game';store.set(gk('yi'),yi);
-  render();preloadYear(YEARS[yi]);setTimeout(()=>{if(YEARS[yi+1])RAW[YEARS[yi+1]].forEach((_,i)=>urlFor(YEARS[yi+1]+'-'+i))},4000);
+  render();mpNewRound();preloadYear(YEARS[yi]);setTimeout(()=>{if(YEARS[yi+1])RAW[YEARS[yi+1]].forEach((_,i)=>urlFor(YEARS[yi+1]+'-'+i))},4000);
   if(seenTip&&!fast)setTimeout(advance,350);
 }
 function advance(){
   if(view!=='game'||phase!=='reveal'||fast)return;
   clearTimeout(revealTimer);
-  if(revealed>=RAW[YEARS[yi]].length){phase='choose';stopAudio();hideSkip();return}
+  if(revealed>=RAW[YEARS[yi]].length){phase='choose';stopAudio();hideSkip();mpCheck();return}
   revealed++;const card=document.querySelector(`.card[data-i="${revealed-1}"]`);if(card)card.classList.add('in');
   const s=SONGS[YEARS[yi]+'-'+(revealed-1)];
   play(s.id);
   revealTimer=setTimeout(advance,CLIP_MS);
 }
 function hideSkip(){const b=document.querySelector('.skipbar');if(b)b.remove()}
-function revealAll(silent){clearTimeout(revealTimer);revealed=RAW[YEARS[yi]].length;phase='choose';hideSkip();if(silent)stopAudio();document.querySelectorAll('.card').forEach(c=>c.classList.add('in'))}
+function revealAll(silent){clearTimeout(revealTimer);revealed=RAW[YEARS[yi]].length;phase='choose';hideSkip();if(silent)stopAudio();document.querySelectorAll('.card').forEach(c=>c.classList.add('in'));mpCheck()}
 function save(i){
+  if(isHost()&&MP.started&&!MP.done&&MP.round){mpVote(i);return}
   const y=YEARS[yi];picks[y]=i;store.set(gk('picks'),picks);clearTimeout(revealTimer);hideSkip();phase='results';resultsFor=y;render();
   // keep the chosen song playing (its whole clip) until the player moves on
   const id=y+'-'+i;
   if(playing===id&&!isPaused())markPlaying();else play(id);
 }
 function afterResults(){
+  if(isHost()&&MP.started&&!MP.done){if(yi<YEARS.length-1)enterYear(yi+1);else mpFinish();return}
   const next=YEARS.findIndex((y,i)=>i>yi&&picks[y]==null);
   if(yi<YEARS.length-1){enterYear(yi+1)}else{view='picks';render();toast(next<0?'Every '+UNIT()+' is saved. Try Deathmatch next.':'That was the last '+UNIT())}
 }
@@ -965,7 +1152,7 @@ function bind(){
   document.querySelectorAll('[data-year]').forEach(b=>b.onclick=()=>enterYear(YEARS.findIndex(y=>String(y)===b.dataset.year)));
   document.querySelectorAll('[data-game]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const g=b.dataset.game;if(g===GAME){if(view==='cats'){view='menu';render()}return}if(/^\d{4}s$/.test(g))store.set('lastdec',g);b.textContent='Loading…';if(await setGame(g)){view='menu';render()}else render()});
   document.querySelectorAll('[data-gocustom]').forEach(b=>b.onclick=e=>{e.stopPropagation();view='custom';editing=null;render()});
-  bindCustom();
+  bindCustom();bindMp();
   document.querySelectorAll('[data-gocats]').forEach(b=>b.onclick=e=>{e.stopPropagation();openCats(GAME.startsWith('c:')?GAME.split(':')[1]:null)});
   document.querySelectorAll('[data-theme]').forEach(b=>b.onclick=e=>{e.stopPropagation();store.set('theme',b.dataset.theme);document.body.className='th-'+b.dataset.theme;render()});
   document.querySelectorAll('[data-catmulti]').forEach(b=>b.onclick=e=>{e.stopPropagation();store.set('catmulti',b.dataset.catmulti==='1');render()});
@@ -1014,6 +1201,7 @@ yi=Math.min(store.get('yi',0),YEARS.length-1);
   if(q.get('p')!=null&&q.get('g')){const g=q.get('g');if(g==='year'||await setGame(g)){if(g==='year'&&GAME!=='year')await setGame('year');
     SHARED={};(q.get('p')||'').replace(/-([0-9a-z])/g,(m,c)=>'_'.repeat(B36.indexOf(c))).split('').forEach((ch,i)=>{const n=B36.indexOf(ch);if(n>=0&&YEARS[i]!=null)SHARED[YEARS[i]]=n});view='shared';render();
     history.replaceState(null,'',location.pathname);return}}
+  if(q.get('join')){mpjoinHTML.code=q.get('join').toUpperCase().slice(0,4);view='mpjoin';history.replaceState(null,'',location.pathname)}
   const g=store.get('game','year');if(g!=='year'){await setGame(g)}render()})();
 </script>
 </body>
